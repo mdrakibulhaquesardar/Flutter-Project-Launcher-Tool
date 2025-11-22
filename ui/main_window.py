@@ -41,8 +41,13 @@ class MainWindow(QMainWindow):
     
     def _init_ui(self):
         """Initialize UI components."""
-        self.setWindowTitle("Flutter Project Launcher Tool")
+        from core.theme import Theme
+        self.setWindowTitle("FluStudio")
         self.setMinimumSize(900, 700)
+        
+        # Set window background (use system default if BACKGROUND is empty)
+        if Theme.BACKGROUND:
+            self.setStyleSheet(f"QMainWindow {{ background-color: {Theme.BACKGROUND}; }}")
         
         # Create dashboard
         self.dashboard = DashboardWidget(self)
@@ -132,34 +137,34 @@ class MainWindow(QMainWindow):
         help_menu = menubar.addMenu("Help")
         self.menus["Help"] = help_menu
         
-        getting_started_action = help_menu.addAction("📚 Getting Started")
+        getting_started_action = help_menu.addAction("Getting Started")
         getting_started_action.triggered.connect(self._show_getting_started)
         
-        documentation_action = help_menu.addAction("📖 Documentation")
+        documentation_action = help_menu.addAction("Documentation")
         documentation_action.triggered.connect(self._show_documentation)
         
-        keyboard_shortcuts_action = help_menu.addAction("⌨️ Keyboard Shortcuts")
+        keyboard_shortcuts_action = help_menu.addAction("Keyboard Shortcuts")
         keyboard_shortcuts_action.triggered.connect(self._show_keyboard_shortcuts)
         
         help_menu.addSeparator()
         
-        check_updates_action = help_menu.addAction("🔄 Check for Updates")
+        check_updates_action = help_menu.addAction("Check for Updates")
         check_updates_action.triggered.connect(self._check_for_updates)
         
-        view_logs_action = help_menu.addAction("📋 View Logs")
+        view_logs_action = help_menu.addAction("View Logs")
         view_logs_action.triggered.connect(self._show_logs)
         
         help_menu.addSeparator()
         
-        report_issue_action = help_menu.addAction("🐛 Report Issue")
+        report_issue_action = help_menu.addAction("Report Issue")
         report_issue_action.triggered.connect(self._report_issue)
         
-        feedback_action = help_menu.addAction("💬 Send Feedback")
+        feedback_action = help_menu.addAction("Send Feedback")
         feedback_action.triggered.connect(self._send_feedback)
         
         help_menu.addSeparator()
         
-        about_action = help_menu.addAction("ℹ️ About")
+        about_action = help_menu.addAction("About")
         about_action.triggered.connect(self._show_about)
         
         # Load plugin menu items after menus are set up
@@ -308,12 +313,13 @@ class MainWindow(QMainWindow):
         doctor_info = flutter_service.flutter_doctor()
         output_text.append(doctor_info.get("output", "No output"))
         
+        from core.theme import Theme
         if doctor_info.get("exit_code") == 0:
             info_label.setText("Flutter Doctor completed successfully")
-            info_label.setStyleSheet("color: green;")
+            info_label.setStyleSheet(f"color: {Theme.SUCCESS};")
         else:
             info_label.setText("Flutter Doctor found some issues")
-            info_label.setStyleSheet("color: orange;")
+            info_label.setStyleSheet(f"color: {Theme.WARNING};")
         
         dialog.exec()
     
@@ -794,9 +800,9 @@ Esc             Close Dialog/Window
         """Show about dialog."""
         QMessageBox.about(
             self,
-            "About Flutter Project Launcher Tool",
+            "About FluStudio",
             """
-            <h2>Flutter Project Launcher Tool</h2>
+            <h2>FluStudio</h2>
             <p>Version 1.0.0</p>
             <p>A desktop application for managing Flutter projects.</p>
             <p>Built with Python and PyQt6</p>

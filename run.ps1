@@ -1,5 +1,5 @@
-# Flutter Project Launcher Tool - PowerShell Run Script
-Write-Host "Starting Flutter Project Launcher Tool..." -ForegroundColor Green
+# FluStudio - PowerShell Run Script
+Write-Host "Starting FluStudio..." -ForegroundColor Green
 Write-Host ""
 
 # Check if venv exists

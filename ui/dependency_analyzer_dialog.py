@@ -39,7 +39,8 @@ class DependencyAnalyzerDialog(QDialog):
         
         if not self.project_path:
             no_project_label = QLabel("⚠️ No project selected. Please select a project first.", self)
-            no_project_label.setStyleSheet("color: orange; padding: 10px;")
+            from core.theme import Theme
+            no_project_label.setStyleSheet(f"color: {Theme.WARNING}; padding: 10px;")
             layout.addWidget(no_project_label)
         
         # Tabs

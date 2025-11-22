@@ -46,7 +46,8 @@ class DeviceSelector(QDialog):
         
         # Info label
         self.info_label = QLabel("", self)
-        self.info_label.setStyleSheet("color: #666; font-size: 9pt;")
+        from core.theme import Theme
+        self.info_label.setStyleSheet(f"color: {Theme.TEXT_MUTED}; font-size: 9pt;")
         self.info_label.setWordWrap(True)
         layout.addWidget(self.info_label)
         

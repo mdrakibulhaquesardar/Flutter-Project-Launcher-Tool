@@ -49,13 +49,16 @@ class ProjectDetailsDialog(QDialog):
         self.details_text = QTextEdit(details_widget)
         self.details_text.setReadOnly(True)
         self.details_text.setFont(QFont("Consolas", 9))
-        self.details_text.setStyleSheet("""
-            QTextEdit {
-                background-color: #f8f8f8;
-                border: 1px solid #ddd;
-                border-radius: 4px;
+        from core.theme import Theme
+        bg_color = Theme.BACKGROUND if Theme.BACKGROUND else "palette(window)"
+        self.details_text.setStyleSheet(f"""
+            QTextEdit {{
+                background-color: {Theme.SURFACE};
+                border: 1px solid {Theme.BORDER};
+                border-radius: 2px;
                 padding: 10px;
-            }
+                color: {Theme.TEXT_PRIMARY};
+            }}
         """)
         details_layout.addWidget(self.details_text)
         

@@ -22,6 +22,7 @@ class ProjectItem(QWidget):
     
     def _init_ui(self):
         """Initialize UI components."""
+        from core.theme import Theme
         layout = QHBoxLayout(self)
         layout.setContentsMargins(10, 8, 10, 8)
         layout.setSpacing(12)
@@ -40,13 +41,13 @@ class ProjectItem(QWidget):
                                             Qt.TransformationMode.SmoothTransformation)
                 icon_label.setPixmap(scaled_pixmap)
                 icon_label.setAlignment(Qt.AlignmentFlag.AlignCenter)
-                icon_label.setStyleSheet("""
-                    QLabel {
-                        border: 2px solid #0078d4;
+                icon_label.setStyleSheet(f"""
+                    QLabel {{
+                        border: 2px solid {Theme.PRIMARY};
                         border-radius: 18px;
                         padding: 1px;
-                        background-color: white;
-                    }
+                        background-color: {Theme.SURFACE};
+                    }}
                 """)
                 icon_label.setFixedSize(container_size, container_size)
                 layout.addWidget(icon_label)
@@ -54,14 +55,14 @@ class ProjectItem(QWidget):
                 # If icon loading fails, show placeholder
                 placeholder = QLabel("📱", self)
                 placeholder.setAlignment(Qt.AlignmentFlag.AlignCenter)
-                placeholder.setStyleSheet("""
-                    QLabel {
-                        border: 2px solid #ddd;
+                placeholder.setStyleSheet(f"""
+                    QLabel {{
+                        border: 2px solid {Theme.BORDER};
                         border-radius: 18px;
                         padding: 1px;
-                        background-color: #f0f0f0;
+                        background-color: {Theme.SURFACE};
                         font-size: 18px;
-                    }
+                    }}
                 """)
                 placeholder.setFixedSize(container_size, container_size)
                 layout.addWidget(placeholder)
@@ -69,14 +70,15 @@ class ProjectItem(QWidget):
             # Show placeholder icon if no icon found
             placeholder = QLabel("📱", self)
             placeholder.setAlignment(Qt.AlignmentFlag.AlignCenter)
-            placeholder.setStyleSheet("""
-                QLabel {
-                    border: 2px solid #ddd;
+            from core.theme import Theme
+            placeholder.setStyleSheet(f"""
+                QLabel {{
+                    border: 2px solid {Theme.BORDER};
                     border-radius: 18px;
                     padding: 1px;
-                    background-color: #f0f0f0;
+                    background-color: {Theme.SURFACE};
                     font-size: 18px;
-                }
+                }}
             """)
             placeholder.setFixedSize(container_size, container_size)
             layout.addWidget(placeholder)
@@ -97,14 +99,14 @@ class ProjectItem(QWidget):
         package_name = self.project_data.get("package_name") or self.project_data.get("name", "")
         if package_name:
             package_label = QLabel(f"📦 {package_name}", self)
-            package_label.setStyleSheet("color: #0078d4; font-size: 9pt;")
+            package_label.setStyleSheet(f"color: {Theme.PRIMARY}; font-size: 9pt;")
             info_layout.addWidget(package_label)
         
         # Project path
         path = self.project_data.get("path", "")
         path_display = Path(path).as_posix() if path else "No path"
         self.path_label = QLabel(f"📁 {path_display}", self)
-        self.path_label.setStyleSheet("color: gray; font-size: 8pt;")
+        self.path_label.setStyleSheet(f"color: {Theme.TEXT_SECONDARY}; font-size: 8pt;")
         self.path_label.setWordWrap(True)
         info_layout.addWidget(self.path_label)
         
@@ -142,12 +144,12 @@ class ProjectItem(QWidget):
         # Display metadata rows
         if metadata_row1:
             self.metadata_label1 = QLabel(" • ".join(metadata_row1), self)
-            self.metadata_label1.setStyleSheet("color: #666; font-size: 8pt;")
+            self.metadata_label1.setStyleSheet(f"color: {Theme.TEXT_MUTED}; font-size: 8pt;")
             info_layout.addWidget(self.metadata_label1)
         
         if metadata_row2:
             self.metadata_label2 = QLabel(" • ".join(metadata_row2), self)
-            self.metadata_label2.setStyleSheet("color: #666; font-size: 8pt;")
+            self.metadata_label2.setStyleSheet(f"color: {Theme.TEXT_MUTED}; font-size: 8pt;")
             info_layout.addWidget(self.metadata_label2)
         
         info_layout.addStretch()
@@ -169,27 +171,8 @@ class ProjectItem(QWidget):
         
         layout.addLayout(button_layout)
         
-        # Style
-        self.setStyleSheet("""
-            ProjectItem {
-                border: 1px solid #ddd;
-                border-radius: 4px;
-                background-color: white;
-            }
-            ProjectItem:hover {
-                background-color: #f5f5f5;
-                border-color: #0078d4;
-            }
-            QPushButton {
-                padding: 4px 8px;
-                border: 1px solid #ccc;
-                border-radius: 3px;
-                background-color: white;
-            }
-            QPushButton:hover {
-                background-color: #e0e0e0;
-            }
-        """)
+        # Style - use theme
+        self.setStyleSheet(Theme.get_project_item_stylesheet())
     
     def mousePressEvent(self, event):
         """Handle mouse click on item."""

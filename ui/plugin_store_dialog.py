@@ -8,6 +8,7 @@ from core.plugin_registry import PluginRegistry
 from core.plugin_loader import PluginLoader
 from core.logger import Logger
 from services.github_plugin_service import GitHubPluginService
+from ui.plugin_store_load_thread import PluginStoreLoadThread
 from pathlib import Path
 import json
 import shutil
@@ -28,6 +29,7 @@ class PluginStoreDialog(QDialog):
         self.registry = PluginRegistry()
         self.plugin_loader = plugin_loader
         self.github_service = GitHubPluginService()
+        self.load_thread: Optional[PluginStoreLoadThread] = None
         
         # Plugin store data
         self.store_data: Dict[str, Any] = {}
@@ -137,44 +139,47 @@ class PluginStoreDialog(QDialog):
             except Exception as e:
                 self.logger.warning(f"Error clearing cache: {e}")
         
-        # Reload data
-        self._load_store_data()
+        # Reload data without cache
+        self._load_store_data(use_cache=False)
     
-    def _load_store_data(self):
-        """Load plugin store data."""
+    def _load_store_data(self, use_cache: bool = False):
+        """Load plugin store data using background thread."""
         self.plugin_list.clear()
         self.details_text.clear()
         self.available_plugins = []
+        
+        # Stop any existing thread
+        if self.load_thread and self.load_thread.isRunning():
+            self.load_thread.terminate()
+            self.load_thread.wait()
         
         # Show loading message
         self.details_text.setText("Loading plugins from GitHub...\n\nPlease wait...")
         self.refresh_btn.setEnabled(False)
         
-        # Fetch plugins from GitHub (force refresh by not using cache)
-        try:
-            github_plugins = self.github_service.fetch_plugins_from_github(use_cache=False)
-            self.logger.info(f"Fetched {len(github_plugins)} plugins from GitHub")
-            
-            if github_plugins:
-                self.details_text.setText(f"Found {len(github_plugins)} plugins from GitHub")
-            else:
-                self.details_text.setText("No plugins found in GitHub repository.\n\nChecking local plugins...")
-        except Exception as e:
-            self.logger.error(f"Error fetching plugins from GitHub: {e}", exc_info=True)
-            github_plugins = []
-            self.details_text.setText(f"Error fetching from GitHub:\n{str(e)}\n\nLoading local plugins...")
-        
-        # Load local store file for built-in plugins
+        # Create and start load thread
+        self.load_thread = PluginStoreLoadThread(use_cache=use_cache)
+        self.load_thread.progress.connect(self._on_load_progress)
+        self.load_thread.finished.connect(self._on_store_data_loaded)
+        self.load_thread.error.connect(self._on_load_error)
+        self.load_thread.start()
+    
+    def _on_load_progress(self, message: str):
+        """Handle loading progress updates."""
+        self.details_text.setText(f"{message}\n\nPlease wait...")
+        self.logger.info(message)
+    
+    def _on_store_data_loaded(self, github_plugins: List[Dict[str, Any]], local_plugins: List[Dict[str, Any]]):
+        """Handle plugin store data loaded."""
+        # Load local store file for built-in plugins if not already loaded
         store_file = Path("data/plugin_store.json")
-        local_plugins = []
-        
-        if store_file.exists():
+        if not local_plugins and store_file.exists():
             try:
                 self.store_data = read_json(str(store_file))
                 local_plugins = self.store_data.get("plugins", [])
             except Exception as e:
                 self.logger.error(f"Error loading plugin store: {e}")
-        else:
+        elif not store_file.exists():
             # Create default store file with example plugins
             self._create_default_store()
             local_plugins = self.store_data.get("plugins", [])
@@ -211,6 +216,18 @@ class PluginStoreDialog(QDialog):
                 f"- {len(local_plugins)} local/builtin\n\n"
                 "Select a plugin to view details."
             )
+    
+    def _on_load_error(self, error_message: str):
+        """Handle loading error."""
+        self.refresh_btn.setEnabled(True)
+        self.logger.error(error_message)
+        self.details_text.setText(
+            f"Error loading plugins:\n{error_message}\n\n"
+            "You can:\n"
+            "1. Click Refresh to try again\n"
+            "2. Check your internet connection\n"
+            "3. Install plugins manually from Plugin Manager → Add Plugin"
+        )
     
     def _create_default_store(self):
         """Create default plugin store file."""

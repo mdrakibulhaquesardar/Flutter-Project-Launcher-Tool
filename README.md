@@ -1,4 +1,4 @@
-# Flutter Project Launcher Tool
+# FluStudio
 
 A cross-platform desktop application for managing Flutter projects, built with Python and PyQt6.
 
@@ -109,7 +109,7 @@ A cross-platform desktop application for managing Flutter projects, built with P
 ## Project Structure
 
 ```
-Flutter Project Launcher Tool/
+FluStudio/
 ├── main.py                 # Application entry point
 ├── requirements.txt        # Python dependencies
 ├── README.md              # This file

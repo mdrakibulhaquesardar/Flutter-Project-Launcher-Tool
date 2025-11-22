@@ -1,5 +1,5 @@
 @echo off
-echo Starting Flutter Project Launcher Tool...
+echo Starting FluStudio...
 echo.
 
 REM Check if venv exists

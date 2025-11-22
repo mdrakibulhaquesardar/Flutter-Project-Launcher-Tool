@@ -10,6 +10,8 @@ from widgets.project_item import ProjectItem
 from ui.console_widget import ConsoleWidget
 from ui.device_selector import DeviceSelector
 from ui.project_details_dialog import ProjectDetailsDialog
+from ui.project_load_thread import ProjectLoadThread
+from ui.project_refresh_thread import ProjectRefreshThread
 from core.logger import Logger
 from pathlib import Path
 import subprocess
@@ -30,14 +32,21 @@ class DashboardWidget(QWidget):
         self.device_service = DeviceService()
         self.logger = Logger()
         self.current_project: Optional[str] = None
+        self.load_thread: Optional[ProjectLoadThread] = None
+        self.refresh_thread: Optional[ProjectRefreshThread] = None
         self._init_ui()
         self._load_projects()
     
     def _init_ui(self):
         """Initialize UI components."""
+        from core.theme import Theme
         layout = QVBoxLayout(self)
         layout.setSpacing(10)
         layout.setContentsMargins(15, 15, 15, 15)
+        
+        # Set background color (use system default if BACKGROUND is empty)
+        if Theme.BACKGROUND:
+            self.setStyleSheet(f"background-color: {Theme.BACKGROUND};")
         
         # Header
         header_layout = QHBoxLayout()
@@ -131,12 +140,20 @@ class DashboardWidget(QWidget):
         
         layout.addWidget(self.actions_widget)
         
-        # Progress bar (for build commands)
+        # Progress bar (for build commands and project loading)
         self.progress_bar = QProgressBar(self)
         self.progress_bar.setVisible(False)
         self.progress_bar.setRange(0, 0)  # Indeterminate
         self.progress_bar.setFormat("Building... %p%")
         layout.addWidget(self.progress_bar)
+        
+        # Loading status label
+        self.loading_label = QLabel("", self)
+        self.loading_label.setAlignment(Qt.AlignmentFlag.AlignCenter)
+        from core.theme import Theme
+        self.loading_label.setStyleSheet(f"color: {Theme.PRIMARY}; font-size: 9pt;")
+        self.loading_label.setVisible(False)
+        layout.addWidget(self.loading_label)
         
         # Console (initially hidden, can be toggled)
         self.console = ConsoleWidget(self)
@@ -144,43 +161,120 @@ class DashboardWidget(QWidget):
         layout.addWidget(self.console)
     
     def _load_projects(self, refresh_versions: bool = False):
-        """Load and display recent projects."""
+        """Load and display recent projects using background thread."""
         # Clear existing projects
         while self.projects_layout.count() > 1:  # Keep stretch
             item = self.projects_layout.takeAt(0)
             if item.widget():
                 item.widget().deleteLater()
         
-        projects = self.project_service.load_recent_projects()
+        # Stop any existing threads
+        if self.load_thread and self.load_thread.isRunning():
+            self.load_thread.terminate()
+            self.load_thread.wait()
+        if self.refresh_thread and self.refresh_thread.isRunning():
+            self.refresh_thread.terminate()
+            self.refresh_thread.wait()
+        
+        # Show loading indicator
+        self.progress_bar.setVisible(True)
+        self.progress_bar.setFormat("Loading projects...")
+        self.loading_label.setVisible(True)
+        self.loading_label.setText("Loading projects...")
+        self.refresh_btn.setEnabled(False)
+        
+        # If refresh_versions is True, first load projects, then refresh them in parallel
+        if refresh_versions:
+            # First load projects
+            self.load_thread = ProjectLoadThread(refresh_versions=False)
+            self.load_thread.progress.connect(self._on_load_progress)
+            self.load_thread.project_loaded.connect(self._on_project_loaded)
+            self.load_thread.finished.connect(self._on_projects_loaded_for_refresh)
+            self.load_thread.error.connect(self._on_load_error)
+            self.load_thread.start()
+        else:
+            # Just load projects normally
+            self.load_thread = ProjectLoadThread(refresh_versions=False)
+            self.load_thread.progress.connect(self._on_load_progress)
+            self.load_thread.project_loaded.connect(self._on_project_loaded)
+            self.load_thread.finished.connect(self._on_projects_loaded)
+            self.load_thread.error.connect(self._on_load_error)
+            self.load_thread.start()
+    
+    def _on_load_progress(self, message: str):
+        """Handle loading progress updates."""
+        self.loading_label.setText(message)
+        self.logger.info(message)
+    
+    def _on_project_loaded(self, project_data: dict):
+        """Handle single project loaded - add it to UI progressively."""
+        project_item = ProjectItem(project_data, self)
+        project_item.clicked.connect(self._on_project_selected)
+        project_item.run_clicked.connect(self._on_project_run)
+        project_item.open_clicked.connect(self._on_project_open)
+        self.projects_layout.insertWidget(self.projects_layout.count() - 1, project_item)
+    
+    def _on_projects_loaded(self, projects: list):
+        """Handle all projects loaded."""
+        self.progress_bar.setVisible(False)
+        self.loading_label.setVisible(False)
+        self.refresh_btn.setEnabled(True)
         
         if not projects:
             no_projects = QLabel("No projects found. Create a new project to get started!", self)
             no_projects.setAlignment(Qt.AlignmentFlag.AlignCenter)
-            no_projects.setStyleSheet("color: gray; padding: 20px;")
+            from core.theme import Theme
+            no_projects.setStyleSheet(f"color: {Theme.TEXT_SECONDARY}; padding: 20px;")
             self.projects_layout.insertWidget(0, no_projects)
-        else:
-            # Refresh Flutter versions if requested
-            if refresh_versions:
-                self.logger.info("Refreshing Flutter SDK versions for all projects...")
-                for project_data in projects:
-                    project_path = project_data.get("path")
-                    if project_path:
-                        try:
-                            # Update metadata with current Flutter version
-                            updated_metadata = self.project_service.get_project_metadata(project_path)
-                            project_data.update(updated_metadata)
-                            # Save updated project
-                            self.project_service.add_project(project_path)
-                        except Exception as e:
-                            self.logger.warning(f"Could not refresh version for {project_path}: {e}")
-                self.logger.info("Version refresh complete")
-            
-            for project_data in projects:
-                project_item = ProjectItem(project_data, self)
-                project_item.clicked.connect(self._on_project_selected)
-                project_item.run_clicked.connect(self._on_project_run)
-                project_item.open_clicked.connect(self._on_project_open)
-                self.projects_layout.insertWidget(self.projects_layout.count() - 1, project_item)
+        
+        self.logger.info(f"Loaded {len(projects)} project(s)")
+    
+    def _on_projects_loaded_for_refresh(self, projects: list):
+        """Handle projects loaded, now refresh versions in parallel."""
+        if not projects:
+            self._on_projects_loaded(projects)
+            return
+        
+        # Clear existing projects before refreshing
+        while self.projects_layout.count() > 1:  # Keep stretch
+            item = self.projects_layout.takeAt(0)
+            if item.widget():
+                item.widget().deleteLater()
+        
+        # Now refresh versions in parallel
+        self.loading_label.setText(f"Refreshing versions for {len(projects)} projects...")
+        self.progress_bar.setFormat("Refreshing versions... %p%")
+        
+        self.refresh_thread = ProjectRefreshThread(projects, max_workers=4)
+        self.refresh_thread.progress.connect(self._on_load_progress)
+        self.refresh_thread.project_updated.connect(self._on_project_refreshed)
+        self.refresh_thread.finished.connect(self._on_refresh_finished)
+        self.refresh_thread.error.connect(self._on_load_error)
+        self.refresh_thread.start()
+    
+    def _on_project_refreshed(self, project_data: dict):
+        """Handle single project refreshed - add to UI."""
+        # Add refreshed project to UI
+        project_item = ProjectItem(project_data, self)
+        project_item.clicked.connect(self._on_project_selected)
+        project_item.run_clicked.connect(self._on_project_run)
+        project_item.open_clicked.connect(self._on_project_open)
+        self.projects_layout.insertWidget(self.projects_layout.count() - 1, project_item)
+    
+    def _on_refresh_finished(self, projects: list):
+        """Handle refresh finished."""
+        self.progress_bar.setVisible(False)
+        self.loading_label.setVisible(False)
+        self.refresh_btn.setEnabled(True)
+        self.logger.info(f"Refreshed {len(projects)} project(s)")
+    
+    def _on_load_error(self, error_message: str):
+        """Handle loading error."""
+        self.progress_bar.setVisible(False)
+        self.loading_label.setVisible(False)
+        self.refresh_btn.setEnabled(True)
+        self.logger.error(error_message)
+        QMessageBox.warning(self, "Error", f"Error loading projects:\n{error_message}")
     
     def _on_project_selected(self, project_path: str):
         """Handle project selection."""

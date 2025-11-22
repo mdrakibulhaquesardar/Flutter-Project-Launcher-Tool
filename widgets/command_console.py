@@ -119,14 +119,8 @@ class CommandConsole(QWidget):
         from PyQt6.QtGui import QFont
         font = QFont("Consolas", 9)
         self.console.setFont(font)
-        self.console.setStyleSheet("""
-            QPlainTextEdit {
-                background-color: #1e1e1e;
-                color: #d4d4d4;
-                border: 1px solid #3c3c3c;
-                selection-background-color: #264f78;
-            }
-        """)
+        from core.theme import Theme
+        self.console.setStyleSheet(Theme.get_console_stylesheet())
         
         # Set up syntax highlighter
         self.highlighter = LogSyntaxHighlighter(self.console.document())
