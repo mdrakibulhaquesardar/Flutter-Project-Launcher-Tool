@@ -9,6 +9,7 @@ from services.device_service import DeviceService
 from widgets.project_item import ProjectItem
 from ui.console_widget import ConsoleWidget
 from ui.device_selector import DeviceSelector
+from ui.project_details_dialog import ProjectDetailsDialog
 from core.logger import Logger
 from pathlib import Path
 import subprocess
@@ -110,6 +111,10 @@ class DashboardWidget(QWidget):
         self.clean_btn.clicked.connect(self._clean_project)
         actions_layout.addWidget(self.clean_btn)
         
+        self.details_btn = QPushButton("ℹ️ Details", self.actions_widget)
+        self.details_btn.clicked.connect(self._show_project_details)
+        actions_layout.addWidget(self.details_btn)
+        
         actions_layout.addStretch()
         
         self.open_vscode_btn = QPushButton("📝 VS Code", self.actions_widget)
@@ -182,6 +187,15 @@ class DashboardWidget(QWidget):
         self.current_project = project_path
         self.actions_widget.setVisible(True)
         self.logger.info(f"Selected project: {project_path}")
+    
+    def _show_project_details(self):
+        """Show project details dialog."""
+        if not self.current_project:
+            QMessageBox.warning(self, "No Project", "Please select a project first.")
+            return
+        
+        dialog = ProjectDetailsDialog(self.current_project, self)
+        dialog.exec()
     
     def _on_project_run(self, project_path: str):
         """Handle run project action."""

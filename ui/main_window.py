@@ -2,6 +2,7 @@
 from PyQt6.QtWidgets import (QMainWindow, QMenuBar, QStatusBar, QMessageBox, 
                              QDialog, QVBoxLayout, QTextEdit, QPushButton, QLabel, QHBoxLayout)
 from PyQt6.QtCore import Qt, QTimer
+from PyQt6.QtGui import QFont
 from ui.dashboard_widget import DashboardWidget
 from ui.project_creator import ProjectCreator
 from ui.settings_dialog import SettingsDialog
@@ -131,7 +132,34 @@ class MainWindow(QMainWindow):
         help_menu = menubar.addMenu("Help")
         self.menus["Help"] = help_menu
         
-        about_action = help_menu.addAction("About")
+        getting_started_action = help_menu.addAction("📚 Getting Started")
+        getting_started_action.triggered.connect(self._show_getting_started)
+        
+        documentation_action = help_menu.addAction("📖 Documentation")
+        documentation_action.triggered.connect(self._show_documentation)
+        
+        keyboard_shortcuts_action = help_menu.addAction("⌨️ Keyboard Shortcuts")
+        keyboard_shortcuts_action.triggered.connect(self._show_keyboard_shortcuts)
+        
+        help_menu.addSeparator()
+        
+        check_updates_action = help_menu.addAction("🔄 Check for Updates")
+        check_updates_action.triggered.connect(self._check_for_updates)
+        
+        view_logs_action = help_menu.addAction("📋 View Logs")
+        view_logs_action.triggered.connect(self._show_logs)
+        
+        help_menu.addSeparator()
+        
+        report_issue_action = help_menu.addAction("🐛 Report Issue")
+        report_issue_action.triggered.connect(self._report_issue)
+        
+        feedback_action = help_menu.addAction("💬 Send Feedback")
+        feedback_action.triggered.connect(self._send_feedback)
+        
+        help_menu.addSeparator()
+        
+        about_action = help_menu.addAction("ℹ️ About")
         about_action.triggered.connect(self._show_about)
         
         # Load plugin menu items after menus are set up
@@ -438,6 +466,329 @@ class MainWindow(QMainWindow):
                 "Plugin Error",
                 f"An error occurred while executing plugin action:\n{str(e)}"
             )
+    
+    def _show_getting_started(self):
+        """Show getting started guide."""
+        dialog = QDialog(self)
+        dialog.setWindowTitle("Getting Started")
+        dialog.setMinimumSize(600, 500)
+        
+        layout = QVBoxLayout(dialog)
+        
+        text = QTextEdit(dialog)
+        text.setReadOnly(True)
+        text.setFont(QFont("Consolas", 9))
+        
+        content = """
+═══════════════════════════════════════════════════════════════
+                    FLUTTER PROJECT LAUNCHER TOOL
+                         Getting Started Guide
+═══════════════════════════════════════════════════════════════
+
+📦 CREATING A NEW PROJECT
+───────────────────────────────────────────────────────────────
+1. Click "File" → "New Project" or press Ctrl+N
+2. Enter project name and location
+3. Select template (optional)
+4. Choose architecture (optional)
+5. Click "Create"
+
+🔍 SCANNING FOR PROJECTS
+───────────────────────────────────────────────────────────────
+1. Click "Tools" → "Scan for Projects"
+2. Select directory to scan
+3. Projects will be automatically added to the list
+
+🏃 RUNNING A PROJECT
+───────────────────────────────────────────────────────────────
+1. Select a project from the list
+2. Click "▶ Run" button or use Quick Actions → "🏃 Run"
+3. Select device if multiple devices are available
+4. Project will run on selected device
+
+📦 BUILDING APK/BUNDLE
+───────────────────────────────────────────────────────────────
+1. Select a project
+2. Click "📦 Build APK" or "🎁 Build Bundle"
+3. Wait for build to complete
+4. Output will be in build/app/outputs/
+
+🔧 MANAGING FLUTTER SDKs
+───────────────────────────────────────────────────────────────
+1. Click "Tools" → "SDK Manager"
+2. Browse available SDK versions
+3. Download and install SDKs
+4. Switch between SDKs
+5. Manage PATH settings
+
+🔌 USING PLUGINS
+───────────────────────────────────────────────────────────────
+1. Click "Plugins" → "Plugin Store"
+2. Browse available plugins
+3. Install plugins from GitHub
+4. Enable/disable plugins in Plugin Manager
+
+⚙️ CONFIGURATION
+───────────────────────────────────────────────────────────────
+1. Click "Tools" → "Settings" or press Ctrl+,
+2. Configure Flutter SDK paths
+3. Set scan directories
+4. Adjust other preferences
+
+💡 TIPS
+───────────────────────────────────────────────────────────────
+• Use Refresh button to update SDK versions
+• Check Flutter Doctor for environment issues
+• Use Environment Info to verify setup
+• View project details for full information
+
+═══════════════════════════════════════════════════════════════
+        """
+        
+        text.setPlainText(content)
+        layout.addWidget(text)
+        
+        close_btn = QPushButton("Close", dialog)
+        close_btn.clicked.connect(dialog.accept)
+        layout.addWidget(close_btn)
+        
+        dialog.exec()
+    
+    def _show_documentation(self):
+        """Show documentation."""
+        dialog = QDialog(self)
+        dialog.setWindowTitle("Documentation")
+        dialog.setMinimumSize(700, 600)
+        
+        layout = QVBoxLayout(dialog)
+        
+        text = QTextEdit(dialog)
+        text.setReadOnly(True)
+        text.setFont(QFont("Consolas", 9))
+        
+        content = """
+═══════════════════════════════════════════════════════════════
+                         DOCUMENTATION
+═══════════════════════════════════════════════════════════════
+
+📚 FEATURES OVERVIEW
+───────────────────────────────────────────────────────────────
+
+• Project Management
+  - Create new Flutter projects
+  - Scan and discover existing projects
+  - Quick access to recent projects
+  - Project details and metadata
+
+• SDK Management
+  - Download Flutter SDKs from GitHub
+  - Install and manage multiple SDK versions
+  - Switch between SDK versions
+  - Automatic PATH management
+
+• Build & Run
+  - Run projects on connected devices
+  - Build APK and App Bundle
+  - Device selection dialog
+  - Real-time console output
+
+• Tools & Utilities
+  - Flutter Doctor integration
+  - Environment information
+  - Version checker
+  - Dependency analyzer
+  - Emulator manager
+  - Pub cache management
+
+• Plugin System
+  - Extensible plugin architecture
+  - Plugin store (GitHub integration)
+  - Architecture generators
+  - Template plugins
+  - Custom tool actions
+
+🔧 KEYBOARD SHORTCUTS
+───────────────────────────────────────────────────────────────
+
+Ctrl+N          New Project
+Ctrl+,          Settings
+Ctrl+Q          Exit
+F5              Refresh Projects
+
+📖 PLUGIN DEVELOPMENT
+───────────────────────────────────────────────────────────────
+
+See PLUGIN_DEVELOPMENT.md for:
+• Plugin structure
+• Plugin API reference
+• Creating custom plugins
+• Plugin examples
+
+🌐 RESOURCES
+───────────────────────────────────────────────────────────────
+
+GitHub Repository:
+https://github.com/mdrakibulhaquesardar/Flutter-Project-Launcher-Tool
+
+Flutter Official:
+https://flutter.dev
+
+═══════════════════════════════════════════════════════════════
+        """
+        
+        text.setPlainText(content)
+        layout.addWidget(text)
+        
+        close_btn = QPushButton("Close", dialog)
+        close_btn.clicked.connect(dialog.accept)
+        layout.addWidget(close_btn)
+        
+        dialog.exec()
+    
+    def _show_keyboard_shortcuts(self):
+        """Show keyboard shortcuts."""
+        dialog = QDialog(self)
+        dialog.setWindowTitle("Keyboard Shortcuts")
+        dialog.setMinimumSize(500, 400)
+        
+        layout = QVBoxLayout(dialog)
+        
+        text = QTextEdit(dialog)
+        text.setReadOnly(True)
+        text.setFont(QFont("Consolas", 10))
+        
+        content = """
+═══════════════════════════════════════════════════════════════
+                      KEYBOARD SHORTCUTS
+═══════════════════════════════════════════════════════════════
+
+FILE MENU
+───────────────────────────────────────────────────────────────
+Ctrl+N          New Project
+Ctrl+Q          Exit
+
+TOOLS MENU
+───────────────────────────────────────────────────────────────
+Ctrl+,          Settings
+
+GENERAL
+───────────────────────────────────────────────────────────────
+F5              Refresh Projects
+Esc             Close Dialog/Window
+
+═══════════════════════════════════════════════════════════════
+        """
+        
+        text.setPlainText(content)
+        layout.addWidget(text)
+        
+        close_btn = QPushButton("Close", dialog)
+        close_btn.clicked.connect(dialog.accept)
+        layout.addWidget(close_btn)
+        
+        dialog.exec()
+    
+    def _check_for_updates(self):
+        """Check for application updates."""
+        QMessageBox.information(
+            self, "Check for Updates",
+            "Update checking feature coming soon!\n\n"
+            "For now, please check:\n"
+            "https://github.com/mdrakibulhaquesardar/Flutter-Project-Launcher-Tool/releases"
+        )
+    
+    def _show_logs(self):
+        """Show application logs."""
+        from pathlib import Path
+        import os
+        
+        log_file = Path.home() / ".flutter_launcher" / "logs" / "app.log"
+        
+        dialog = QDialog(self)
+        dialog.setWindowTitle("Application Logs")
+        dialog.setMinimumSize(800, 600)
+        
+        layout = QVBoxLayout(dialog)
+        
+        text = QTextEdit(dialog)
+        text.setReadOnly(True)
+        text.setFont(QFont("Consolas", 9))
+        
+        if log_file.exists():
+            try:
+                with open(log_file, 'r', encoding='utf-8') as f:
+                    content = f.read()
+                    # Show last 1000 lines
+                    lines = content.split('\n')
+                    if len(lines) > 1000:
+                        content = '\n'.join(lines[-1000:])
+                    text.setPlainText(content)
+            except Exception as e:
+                text.setPlainText(f"Error reading log file: {e}")
+        else:
+            text.setPlainText("No log file found.\n\nLog file location:\n" + str(log_file))
+        
+        layout.addWidget(text)
+        
+        button_layout = QHBoxLayout()
+        button_layout.addStretch()
+        
+        open_folder_btn = QPushButton("Open Log Folder", dialog)
+        open_folder_btn.clicked.connect(lambda: self._open_log_folder())
+        button_layout.addWidget(open_folder_btn)
+        
+        close_btn = QPushButton("Close", dialog)
+        close_btn.clicked.connect(dialog.accept)
+        button_layout.addWidget(close_btn)
+        
+        layout.addLayout(button_layout)
+        
+        dialog.exec()
+    
+    def _open_log_folder(self):
+        """Open log folder in file explorer."""
+        from pathlib import Path
+        import os
+        
+        log_folder = Path.home() / ".flutter_launcher" / "logs"
+        log_folder.mkdir(parents=True, exist_ok=True)
+        
+        try:
+            if os.name == 'nt':
+                os.startfile(str(log_folder))
+            elif os.name == 'posix':
+                import subprocess
+                subprocess.Popen(["xdg-open", str(log_folder)])
+            elif os.name == 'darwin':
+                import subprocess
+                subprocess.Popen(["open", str(log_folder)])
+        except Exception as e:
+            QMessageBox.warning(self, "Error", f"Could not open log folder: {e}")
+    
+    def _report_issue(self):
+        """Open GitHub issues page."""
+        import webbrowser
+        try:
+            webbrowser.open("https://github.com/mdrakibulhaquesardar/Flutter-Project-Launcher-Tool/issues/new")
+        except Exception as e:
+            QMessageBox.information(
+                self, "Report Issue",
+                "Please visit:\n\n"
+                "https://github.com/mdrakibulhaquesardar/Flutter-Project-Launcher-Tool/issues/new\n\n"
+                f"Error opening browser: {e}"
+            )
+    
+    def _send_feedback(self):
+        """Send feedback."""
+        QMessageBox.information(
+            self, "Send Feedback",
+            "Thank you for your interest!\n\n"
+            "You can provide feedback by:\n"
+            "• Opening an issue on GitHub\n"
+            "• Creating a discussion\n"
+            "• Contributing to the project\n\n"
+            "GitHub: https://github.com/mdrakibulhaquesardar/Flutter-Project-Launcher-Tool"
+        )
     
     def _show_about(self):
         """Show about dialog."""

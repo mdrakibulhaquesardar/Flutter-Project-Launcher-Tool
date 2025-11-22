@@ -21,26 +21,90 @@ class GitHubPluginService:
         self.cache_file.parent.mkdir(parents=True, exist_ok=True)
     
     def fetch_plugins_from_github(self, use_cache: bool = True) -> List[Dict[str, Any]]:
-        """Fetch available plugins from GitHub repository."""
+        """Fetch available plugins from GitHub repository using .registry.json."""
         # Check cache first
         if use_cache and self.cache_file.exists():
             try:
                 cache_data = read_json(str(self.cache_file))
                 # Cache valid for 1 hour
                 import time
-                if time.time() - cache_data.get("cached_at", 0) < 3600:
-                    self.logger.info("Using cached plugin list")
-                    return cache_data.get("plugins", [])
+                cache_age = time.time() - cache_data.get("cached_at", 0)
+                if cache_age < 3600:
+                    cached_plugins = cache_data.get("plugins", [])
+                    self.logger.info(f"Using cached plugin list ({len(cached_plugins)} plugins, {int(cache_age)}s old)")
+                    return cached_plugins
+                else:
+                    self.logger.info(f"Cache expired ({int(cache_age)}s old), fetching fresh data")
             except Exception as e:
                 self.logger.warning(f"Error reading cache: {e}")
         
+        try:
+            # Fetch .registry.json from GitHub (more efficient than scanning directories)
+            registry_url = f"{self.raw_base_url}/plugins/.registry.json"
+            self.logger.info(f"Fetching plugin registry from: {registry_url}")
+            
+            response = requests.get(registry_url, timeout=10)
+            
+            if response.status_code == 200:
+                # Parse registry JSON
+                registry_data = response.json()
+                plugins_list = registry_data.get("plugins", [])
+                
+                # Convert registry format to store format
+                plugins = []
+                for plugin_entry in plugins_list:
+                    plugin_info = {
+                        "id": plugin_entry.get("id"),
+                        "name": plugin_entry.get("name", plugin_entry.get("id")),
+                        "version": plugin_entry.get("version", "1.0.0"),
+                        "author": plugin_entry.get("author", "Unknown"),
+                        "description": plugin_entry.get("description", ""),
+                        "plugin_type": plugin_entry.get("plugin_type", "general"),
+                        "download_url": f"{self.raw_base_url}/plugins/{plugin_entry.get('id')}",
+                        "repository": "github",
+                        "repo_owner": self.repo_owner,
+                        "repo_name": self.repo_name,
+                        "branch": "main"
+                    }
+                    plugins.append(plugin_info)
+                
+                self.logger.info(f"Fetched {len(plugins)} plugins from registry")
+                
+                # Cache the results
+                try:
+                    import time
+                    cache_data = {
+                        "plugins": plugins,
+                        "cached_at": time.time()
+                    }
+                    write_json(str(self.cache_file), cache_data)
+                except Exception as e:
+                    self.logger.warning(f"Error caching plugins: {e}")
+                
+                return plugins
+            else:
+                self.logger.warning(f"Registry file not found ({response.status_code}), falling back to directory scan")
+                # Fallback to directory scanning if registry doesn't exist
+                return self._fetch_plugins_from_directory()
+            
+        except requests.exceptions.RequestException as e:
+            self.logger.error(f"Network error fetching plugins: {e}")
+            # Fallback to directory scanning
+            return self._fetch_plugins_from_directory()
+        except Exception as e:
+            self.logger.error(f"Error fetching plugins from GitHub: {e}", exc_info=True)
+            # Fallback to directory scanning
+            return self._fetch_plugins_from_directory()
+    
+    def _fetch_plugins_from_directory(self) -> List[Dict[str, Any]]:
+        """Fallback method: Fetch plugins by scanning plugins directory."""
         try:
             # Fetch plugins directory structure from GitHub API
             plugins_url = f"{self.base_url}/contents/plugins"
             response = requests.get(plugins_url, timeout=10)
             
             if response.status_code != 200:
-                self.logger.error(f"Failed to fetch plugins: {response.status_code}")
+                self.logger.error(f"Failed to fetch plugins directory: {response.status_code}")
                 return []
             
             plugins_data = response.json()
@@ -79,24 +143,10 @@ class GitHubPluginService:
                     self.logger.warning(f"Error fetching plugin {plugin_id}: {e}")
                     continue
             
-            # Cache the results
-            try:
-                import time
-                cache_data = {
-                    "plugins": plugins,
-                    "cached_at": time.time()
-                }
-                write_json(str(self.cache_file), cache_data)
-            except Exception as e:
-                self.logger.warning(f"Error caching plugins: {e}")
-            
             return plugins
             
-        except requests.exceptions.RequestException as e:
-            self.logger.error(f"Network error fetching plugins: {e}")
-            return []
         except Exception as e:
-            self.logger.error(f"Error fetching plugins from GitHub: {e}")
+            self.logger.error(f"Error fetching plugins from directory: {e}")
             return []
     
     def download_plugin(self, plugin_id: str, download_url: str, 

@@ -83,8 +83,17 @@ class ProjectService:
             path = project.get("path")
             # Validate project still exists
             if path and Path(path).exists() and is_flutter_project(path):
+                # Get package name from metadata or use name
+                metadata = {}
+                if project.get("metadata"):
+                    try:
+                        metadata = json.loads(project["metadata"])
+                    except:
+                        pass
+                
                 formatted = {
                     "name": project.get("name", ""),
+                    "package_name": metadata.get("package_name") or project.get("name", ""),
                     "path": path,
                     "flutter_version": project.get("flutter_version"),
                     "flutter_sdk_constraint": project.get("flutter_sdk_constraint"),
@@ -121,7 +130,10 @@ class ProjectService:
                 with open(pubspec, 'r', encoding='utf-8') as f:
                     pubspec_data = yaml.safe_load(f)
                     if pubspec_data:
-                        metadata["name"] = pubspec_data.get("name", path.name)
+                        # Package name from pubspec.yaml
+                        package_name = pubspec_data.get("name", path.name)
+                        metadata["name"] = package_name
+                        metadata["package_name"] = package_name  # Explicit package name field
                         metadata["dependencies"] = pubspec_data.get("dependencies", {})
             except Exception as e:
                 self.logger.warning(f"Error reading pubspec.yaml: {e}")
@@ -168,7 +180,10 @@ class ProjectService:
                     # Extract version number (e.g., "Flutter 3.24.0")
                     version_match = re.search(r'Flutter\s+([\d.]+)', version_line)
                     if version_match:
-                        metadata["flutter_version"] = f"Flutter {version_match.group(1)}"
+                        # Store clean version: "3.24.0" or "Flutter 3.24.0"
+                        version_number = version_match.group(1)
+                        metadata["flutter_version"] = f"Flutter {version_number}"
+                        metadata["flutter_version_number"] = version_number  # Store clean version number
                     else:
                         metadata["flutter_version"] = version_line
         except Exception as e:

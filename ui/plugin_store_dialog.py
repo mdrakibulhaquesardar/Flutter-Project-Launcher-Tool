@@ -52,9 +52,9 @@ class PluginStoreDialog(QDialog):
         header_layout.addWidget(header_label)
         header_layout.addStretch()
         
-        refresh_btn = QPushButton("🔄 Refresh")
-        refresh_btn.clicked.connect(self._load_store_data)
-        header_layout.addWidget(refresh_btn)
+        self.refresh_btn = QPushButton("🔄 Refresh")
+        self.refresh_btn.clicked.connect(self._refresh_plugins)
+        header_layout.addWidget(self.refresh_btn)
         layout.addLayout(header_layout)
         
         # Search and filter
@@ -126,6 +126,20 @@ class PluginStoreDialog(QDialog):
         button_layout.addWidget(close_btn)
         layout.addLayout(button_layout)
     
+    def _refresh_plugins(self):
+        """Refresh plugins from GitHub (clear cache and reload)."""
+        # Clear cache
+        cache_file = self.github_service.cache_file
+        if cache_file.exists():
+            try:
+                cache_file.unlink()
+                self.logger.info("Cleared plugin cache")
+            except Exception as e:
+                self.logger.warning(f"Error clearing cache: {e}")
+        
+        # Reload data
+        self._load_store_data()
+    
     def _load_store_data(self):
         """Load plugin store data."""
         self.plugin_list.clear()
@@ -133,10 +147,22 @@ class PluginStoreDialog(QDialog):
         self.available_plugins = []
         
         # Show loading message
-        self.details_text.setText("Loading plugins from GitHub...")
+        self.details_text.setText("Loading plugins from GitHub...\n\nPlease wait...")
+        self.refresh_btn.setEnabled(False)
         
-        # Fetch plugins from GitHub
-        github_plugins = self.github_service.fetch_plugins_from_github()
+        # Fetch plugins from GitHub (force refresh by not using cache)
+        try:
+            github_plugins = self.github_service.fetch_plugins_from_github(use_cache=False)
+            self.logger.info(f"Fetched {len(github_plugins)} plugins from GitHub")
+            
+            if github_plugins:
+                self.details_text.setText(f"Found {len(github_plugins)} plugins from GitHub")
+            else:
+                self.details_text.setText("No plugins found in GitHub repository.\n\nChecking local plugins...")
+        except Exception as e:
+            self.logger.error(f"Error fetching plugins from GitHub: {e}", exc_info=True)
+            github_plugins = []
+            self.details_text.setText(f"Error fetching from GitHub:\n{str(e)}\n\nLoading local plugins...")
         
         # Load local store file for built-in plugins
         store_file = Path("data/plugin_store.json")
@@ -164,13 +190,26 @@ class PluginStoreDialog(QDialog):
                 self.available_plugins.append(local_plugin)
         
         self._display_plugins()
+        self.refresh_btn.setEnabled(True)
         
         if not self.available_plugins:
             self.details_text.setText(
                 "No plugins found.\n\n"
-                "Plugins can be installed manually from:\n"
-                "1. Plugin Manager → Add Plugin\n"
-                "2. Import from ZIP file or folder"
+                "Possible reasons:\n"
+                "1. No plugins in GitHub repository\n"
+                "2. Network connection issue\n"
+                "3. GitHub API rate limit\n\n"
+                "You can:\n"
+                "1. Click Refresh to try again\n"
+                "2. Install plugins manually from Plugin Manager → Add Plugin"
+            )
+        else:
+            # Show success message briefly
+            self.details_text.setText(
+                f"Loaded {len(self.available_plugins)} plugins:\n"
+                f"- {len(github_plugins)} from GitHub\n"
+                f"- {len(local_plugins)} local/builtin\n\n"
+                "Select a plugin to view details."
             )
     
     def _create_default_store(self):

@@ -93,42 +93,62 @@ class ProjectItem(QWidget):
         self.name_label.setFont(name_font)
         info_layout.addWidget(self.name_label)
         
+        # Package name (from pubspec.yaml)
+        package_name = self.project_data.get("package_name") or self.project_data.get("name", "")
+        if package_name:
+            package_label = QLabel(f"📦 {package_name}", self)
+            package_label.setStyleSheet("color: #0078d4; font-size: 9pt;")
+            info_layout.addWidget(package_label)
+        
         # Project path
         path = self.project_data.get("path", "")
         path_display = Path(path).as_posix() if path else "No path"
-        self.path_label = QLabel(path_display, self)
-        self.path_label.setStyleSheet("color: gray;")
+        self.path_label = QLabel(f"📁 {path_display}", self)
+        self.path_label.setStyleSheet("color: gray; font-size: 8pt;")
         self.path_label.setWordWrap(True)
         info_layout.addWidget(self.path_label)
         
-        # Metadata (last modified, Flutter version)
-        metadata_text = []
+        # Metadata row 1: Last modified
+        metadata_row1 = []
         if self.project_data.get("last_modified"):
             from datetime import datetime
             try:
                 dt = datetime.fromisoformat(self.project_data["last_modified"])
-                metadata_text.append(f"Modified: {dt.strftime('%Y-%m-%d %H:%M')}")
+                metadata_row1.append(f"🕒 Modified: {dt.strftime('%Y-%m-%d %H:%M')}")
             except:
                 pass
         
-        # Show Flutter SDK version prominently
+        # Metadata row 2: Flutter SDK version
+        metadata_row2 = []
         flutter_version = self.project_data.get("flutter_version")
         flutter_constraint = self.project_data.get("flutter_sdk_constraint")
         
         if flutter_version:
-            # Show version with icon
-            metadata_text.append(f"🔧 {flutter_version}")
+            # Extract just the version number if it contains "Flutter"
+            version_display = flutter_version
+            if "Flutter" in flutter_version:
+                import re
+                version_match = re.search(r'Flutter\s+([\d.]+)', flutter_version)
+                if version_match:
+                    version_display = f"v{version_match.group(1)}"
+                else:
+                    version_display = flutter_version.replace("Flutter", "").strip()
+            metadata_row2.append(f"🔧 SDK: {version_display}")
         elif flutter_constraint:
-            # Show SDK constraint if version not available
-            metadata_text.append(f"SDK: {flutter_constraint}")
+            metadata_row2.append(f"🔧 SDK Constraint: {flutter_constraint}")
         else:
-            # Show "Unknown" if no version info
-            metadata_text.append("Flutter: Unknown")
+            metadata_row2.append("🔧 SDK: Unknown")
         
-        if metadata_text:
-            self.metadata_label = QLabel(" • ".join(metadata_text), self)
-            self.metadata_label.setStyleSheet("color: #666; font-size: 9pt;")
-            info_layout.addWidget(self.metadata_label)
+        # Display metadata rows
+        if metadata_row1:
+            self.metadata_label1 = QLabel(" • ".join(metadata_row1), self)
+            self.metadata_label1.setStyleSheet("color: #666; font-size: 8pt;")
+            info_layout.addWidget(self.metadata_label1)
+        
+        if metadata_row2:
+            self.metadata_label2 = QLabel(" • ".join(metadata_row2), self)
+            self.metadata_label2.setStyleSheet("color: #666; font-size: 8pt;")
+            info_layout.addWidget(self.metadata_label2)
         
         info_layout.addStretch()
         layout.addLayout(info_layout, 1)
