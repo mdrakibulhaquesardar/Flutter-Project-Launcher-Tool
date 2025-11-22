@@ -7,8 +7,11 @@ from PyQt6.QtGui import QFont
 from core.plugin_registry import PluginRegistry
 from core.plugin_loader import PluginLoader
 from core.logger import Logger
+from services.github_plugin_service import GitHubPluginService
 from pathlib import Path
 import json
+import shutil
+import requests
 from typing import Optional, Dict, List, Any
 from utils.file_utils import read_json, write_json
 
@@ -24,6 +27,7 @@ class PluginStoreDialog(QDialog):
         self.logger = Logger()
         self.registry = PluginRegistry()
         self.plugin_loader = plugin_loader
+        self.github_service = GitHubPluginService()
         
         # Plugin store data
         self.store_data: Dict[str, Any] = {}
@@ -128,22 +132,46 @@ class PluginStoreDialog(QDialog):
         self.details_text.clear()
         self.available_plugins = []
         
-        # Try to load from local store file
+        # Show loading message
+        self.details_text.setText("Loading plugins from GitHub...")
+        
+        # Fetch plugins from GitHub
+        github_plugins = self.github_service.fetch_plugins_from_github()
+        
+        # Load local store file for built-in plugins
         store_file = Path("data/plugin_store.json")
+        local_plugins = []
         
         if store_file.exists():
             try:
                 self.store_data = read_json(str(store_file))
-                self.available_plugins = self.store_data.get("plugins", [])
+                local_plugins = self.store_data.get("plugins", [])
             except Exception as e:
                 self.logger.error(f"Error loading plugin store: {e}")
-                self._show_default_store()
         else:
             # Create default store file with example plugins
             self._create_default_store()
-            self.available_plugins = self.store_data.get("plugins", [])
+            local_plugins = self.store_data.get("plugins", [])
+        
+        # Combine local and GitHub plugins
+        # Use GitHub plugins first, then add local ones that aren't in GitHub
+        self.available_plugins = github_plugins.copy()
+        
+        # Add local plugins that aren't already in GitHub list
+        github_ids = {p.get("id") for p in github_plugins}
+        for local_plugin in local_plugins:
+            if local_plugin.get("id") not in github_ids:
+                self.available_plugins.append(local_plugin)
         
         self._display_plugins()
+        
+        if not self.available_plugins:
+            self.details_text.setText(
+                "No plugins found.\n\n"
+                "Plugins can be installed manually from:\n"
+                "1. Plugin Manager → Add Plugin\n"
+                "2. Import from ZIP file or folder"
+            )
     
     def _create_default_store(self):
         """Create default plugin store file."""
@@ -325,7 +353,7 @@ Status: {'✓ Installed' if is_installed else '✗ Not Installed'}
             return
         
         # Check if it's a builtin plugin (already in plugins folder)
-        if plugin.get("download_url") == "local":
+        if plugin.get("download_url") == "local" or plugin.get("repository") == "builtin":
             # Check if plugin exists locally
             plugin_path = Path("plugins") / plugin_id
             if plugin_path.exists():
@@ -348,11 +376,17 @@ Status: {'✓ Installed' if is_installed else '✗ Not Installed'}
                         # Load plugin
                         if self.plugin_loader:
                             self.plugin_loader.load_plugin(plugin_id)
+                            # Reload plugin menu items
+                            if hasattr(self.parent(), '_load_plugin_menu_items'):
+                                self.parent()._load_plugin_menu_items()
+                            if hasattr(self.parent(), '_load_plugin_tool_actions'):
+                                self.parent()._load_plugin_tool_actions()
                         
                         QMessageBox.information(
                             self, "Success",
                             f"Plugin '{plugin.get('name')}' installed successfully!"
                         )
+                        self._load_store_data()  # Refresh list
                         self._show_plugin_details()  # Refresh details
                         return
                     except Exception as e:
@@ -362,14 +396,163 @@ Status: {'✓ Installed' if is_installed else '✗ Not Installed'}
                             f"Failed to install plugin: {e}"
                         )
                         return
+            else:
+                # Plugin doesn't exist locally, try to install from GitHub
+                # Use GitHub service to get proper download URL
+                github_download_url = self.github_service.get_plugin_download_url(plugin_id)
+                
+                reply = QMessageBox.question(
+                    self, "Install Plugin",
+                    f"Plugin '{plugin.get('name')}' not found locally.\n\n"
+                    f"Install from GitHub repository?\n\n"
+                    f"Repository: {self.github_service.repo_owner}/{self.github_service.repo_name}",
+                    QMessageBox.StandardButton.Yes | QMessageBox.StandardButton.No
+                )
+                
+                if reply == QMessageBox.StandardButton.Yes:
+                    self._install_from_github(plugin_id, github_download_url)
+                return
         
-        # For remote plugins (future implementation)
-        QMessageBox.information(
-            self, "Coming Soon",
-            "Remote plugin installation is not yet implemented.\n\n"
-            "For now, you can install plugins manually:\n"
-            "1. Go to Plugin Manager\n"
-            "2. Use 'Add Plugin' tab\n"
-            "3. Import from ZIP or folder"
-        )
+        # Check if it's a GitHub plugin
+        if plugin.get("repository") == "github":
+            # Download from GitHub
+            download_url = plugin.get("download_url")
+            if not download_url:
+                QMessageBox.warning(
+                    self, "Error",
+                    "Download URL not available for this plugin."
+                )
+                return
+            
+            # Show confirmation
+            reply = QMessageBox.question(
+                self, "Install Plugin",
+                f"Install '{plugin.get('name')}' from GitHub?\n\n"
+                f"This will download the plugin files.",
+                QMessageBox.StandardButton.Yes | QMessageBox.StandardButton.No
+            )
+            
+            if reply == QMessageBox.StandardButton.Yes:
+                self._install_from_github(plugin_id, download_url)
+        else:
+            # For other remote plugins (future implementation)
+            QMessageBox.information(
+                self, "Coming Soon",
+                "Remote plugin installation is not yet implemented.\n\n"
+                "For now, you can install plugins manually:\n"
+                "1. Go to Plugin Manager\n"
+                "2. Use 'Add Plugin' tab\n"
+                "3. Import from ZIP or folder"
+            )
+    
+    def _install_from_github(self, plugin_id: str, download_url: str):
+        """Install plugin from GitHub."""
+        try:
+            # Show progress
+            self.details_text.setText(f"Downloading plugin '{plugin_id}' from GitHub...\n\nPlease wait...")
+            self.install_btn.setEnabled(False)
+            
+            plugin_dir = Path("plugins") / plugin_id
+            
+            # Check if already exists
+            if plugin_dir.exists():
+                reply = QMessageBox.question(
+                    self, "Plugin Exists",
+                    f"Plugin '{plugin_id}' already exists. Overwrite?",
+                    QMessageBox.StandardButton.Yes | QMessageBox.StandardButton.No
+                )
+                if reply == QMessageBox.StandardButton.No:
+                    self.install_btn.setEnabled(True)
+                    self._show_plugin_details()
+                    return
+                shutil.rmtree(plugin_dir)
+            
+            # Download plugin
+            self.details_text.setText(f"Downloading plugin files...\n\nPlugin: {plugin_id}")
+            
+            if self.github_service.download_plugin(plugin_id, download_url, plugin_dir):
+                self.details_text.setText(f"Installing plugin...\n\nPlugin: {plugin_id}")
+                
+                # Register plugin
+                plugin_json = plugin_dir / "plugin.json"
+                if plugin_json.exists():
+                    metadata = read_json(str(plugin_json))
+                    self.registry.register_plugin(
+                        plugin_id=plugin_id,
+                        name=metadata.get("name", plugin_id),
+                        version=metadata.get("version", "1.0.0"),
+                        author=metadata.get("author", "Unknown"),
+                        description=metadata.get("description", ""),
+                        plugin_type=metadata.get("plugin_type", "general"),
+                        path=str(plugin_dir),
+                        enabled=True
+                    )
+                    
+                    # Load plugin
+                    if self.plugin_loader:
+                        self.plugin_loader.load_plugin(plugin_id)
+                        # Reload plugin menu items
+                        if hasattr(self.parent(), '_load_plugin_menu_items'):
+                            self.parent()._load_plugin_menu_items()
+                        if hasattr(self.parent(), '_load_plugin_tool_actions'):
+                            self.parent()._load_plugin_tool_actions()
+                    
+                    QMessageBox.information(
+                        self, "Success",
+                        f"Plugin '{metadata.get('name', plugin_id)}' installed successfully from GitHub!\n\n"
+                        f"The plugin has been loaded and is ready to use."
+                    )
+                    
+                    # Refresh display
+                    self._load_store_data()
+                    self._show_plugin_details()
+                else:
+                    QMessageBox.warning(
+                        self, "Error",
+                        "plugin.json not found in downloaded files.\n\n"
+                        "The plugin may be incomplete or corrupted."
+                    )
+                    self.install_btn.setEnabled(True)
+            else:
+                # Check if plugin exists in GitHub
+                try:
+                    plugin_api_url = f"{self.github_service.base_url}/contents/plugins/{plugin_id}"
+                    check_response = requests.get(plugin_api_url, timeout=5)
+                    if check_response.status_code == 404:
+                        QMessageBox.warning(
+                            self, "Plugin Not Found",
+                            f"Plugin '{plugin_id}' not found in GitHub repository.\n\n"
+                            f"Repository: {self.github_service.repo_owner}/{self.github_service.repo_name}\n\n"
+                            "The plugin may not have been pushed to GitHub yet."
+                        )
+                    else:
+                        QMessageBox.warning(
+                            self, "Error",
+                            f"Failed to download plugin '{plugin_id}' from GitHub.\n\n"
+                            f"HTTP Status: {check_response.status_code}\n\n"
+                            "Please check:\n"
+                            "1. Your internet connection\n"
+                            "2. The plugin exists in the repository\n"
+                            "3. GitHub API is accessible"
+                        )
+                except Exception as e:
+                    QMessageBox.warning(
+                        self, "Error",
+                        f"Failed to download plugin '{plugin_id}' from GitHub.\n\n"
+                        f"Error: {str(e)}\n\n"
+                        "Please check:\n"
+                        "1. Your internet connection\n"
+                        "2. GitHub API is accessible"
+                    )
+                self.install_btn.setEnabled(True)
+                self._show_plugin_details()
+        except Exception as e:
+            self.logger.error(f"Error installing plugin from GitHub: {e}", exc_info=True)
+            QMessageBox.critical(
+                self, "Error",
+                f"Failed to install plugin:\n{str(e)}\n\n"
+                "Check the console for more details."
+            )
+            self.install_btn.setEnabled(True)
+            self._show_plugin_details()
 

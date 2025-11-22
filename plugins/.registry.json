@@ -32,6 +32,28 @@
       "path": "plugins\\getx_generator",
       "enabled": true,
       "installed_at": "2025-11-22T06:47:55.297200"
+    },
+    {
+      "id": "mvvm_generator",
+      "name": "MVVM Architecture Generator",
+      "version": "1.0.0",
+      "author": "Flutter Launcher",
+      "description": "Generate MVVM (Model-View-ViewModel) architecture pattern for Flutter projects",
+      "plugin_type": "architecture",
+      "path": "plugins\\mvvm_generator",
+      "enabled": true,
+      "installed_at": "2025-11-22T07:23:40.695578"
+    },
+    {
+      "id": "riverpod_generator",
+      "name": "Riverpod Architecture Generator",
+      "version": "1.0.0",
+      "author": "Flutter Launcher",
+      "description": "Generate Riverpod-based architecture with providers, notifiers, and state management",
+      "plugin_type": "architecture",
+      "path": "plugins\\riverpod_generator",
+      "enabled": true,
+      "installed_at": "2025-11-22T07:23:40.709601"
     }
   ]
 }

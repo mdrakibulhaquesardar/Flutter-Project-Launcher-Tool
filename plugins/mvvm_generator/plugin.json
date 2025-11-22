@@ -1,0 +1,13 @@
+{
+  "name": "MVVM Architecture Generator",
+  "id": "mvvm_generator",
+  "version": "1.0.0",
+  "author": "Flutter Launcher",
+  "description": "Generate MVVM (Model-View-ViewModel) architecture pattern for Flutter projects",
+  "plugin_type": "architecture",
+  "entry": "main.py",
+  "py_dependencies": [],
+  "enabled": true,
+  "min_app_version": "1.0.0"
+}
+

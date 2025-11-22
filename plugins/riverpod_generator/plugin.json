@@ -1,0 +1,13 @@
+{
+  "name": "Riverpod Architecture Generator",
+  "id": "riverpod_generator",
+  "version": "1.0.0",
+  "author": "Flutter Launcher",
+  "description": "Generate Riverpod-based architecture with providers, notifiers, and state management",
+  "plugin_type": "architecture",
+  "entry": "main.py",
+  "py_dependencies": [],
+  "enabled": true,
+  "min_app_version": "1.0.0"
+}
+
