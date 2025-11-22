@@ -1,0 +1,28 @@
+{
+  "templates": [
+    {
+      "id": "default",
+      "name": "Default Flutter App",
+      "description": "Standard Flutter counter app template",
+      "type": "builtin"
+    },
+    {
+      "id": "mvvm",
+      "name": "MVVM Architecture",
+      "description": "Flutter project with MVVM pattern",
+      "type": "custom"
+    },
+    {
+      "id": "clean",
+      "name": "Clean Architecture",
+      "description": "Flutter project with Clean Architecture",
+      "type": "custom"
+    },
+    {
+      "id": "getx",
+      "name": "GetX Template",
+      "description": "Flutter project with GetX state management",
+      "type": "custom"
+    }
+  ]
+}
