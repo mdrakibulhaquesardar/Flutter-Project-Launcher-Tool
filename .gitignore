@@ -22,9 +22,8 @@ wheels/
 
 # Virtual Environment
 venv/
-env/
 ENV/
-.venv
+env/
 
 # IDE
 .vscode/
@@ -36,14 +35,23 @@ ENV/
 # OS
 .DS_Store
 Thumbs.db
-desktop.ini
 
-# Application data
-data/projects.json
-data/settings.json
+# Build outputs
+dist/
+build/
+*.spec.bak
+
+# Installer outputs
+dist/installer/
+
+# Database
+*.db
+*.sqlite
+*.sqlite3
+
+# Logs
 *.log
 
-# Keep templates directory structure
-!data/templates/.gitkeep
-
-
+# Temporary files
+*.tmp
+*.temp

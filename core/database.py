@@ -57,7 +57,8 @@ class Database:
                 last_modified TIMESTAMP,
                 last_accessed TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
                 created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-                metadata TEXT
+                metadata TEXT,
+                tags TEXT DEFAULT '[]'
             )
         """)
         
@@ -97,12 +98,37 @@ class Database:
         conn.commit()
         conn.close()
         self.logger.info(f"Database initialized: {self.db_file}")
+        
+        # Run migrations
+        self._migrate_tags_column()
     
     def _get_connection(self) -> sqlite3.Connection:
         """Get database connection."""
         conn = sqlite3.connect(str(self.db_file))
         conn.row_factory = sqlite3.Row  # Return rows as dict-like objects
         return conn
+    
+    def _migrate_tags_column(self):
+        """Migrate tags column if it doesn't exist."""
+        try:
+            conn = self._get_connection()
+            cursor = conn.cursor()
+            
+            # Check if tags column exists
+            cursor.execute("PRAGMA table_info(projects)")
+            columns = [row[1] for row in cursor.fetchall()]
+            
+            if 'tags' not in columns:
+                self.logger.info("Adding tags column to projects table...")
+                cursor.execute("ALTER TABLE projects ADD COLUMN tags TEXT DEFAULT '[]'")
+                # Initialize existing projects with empty tags array
+                cursor.execute("UPDATE projects SET tags = '[]' WHERE tags IS NULL")
+                conn.commit()
+                self.logger.info("Tags column migration completed")
+            
+            conn.close()
+        except Exception as e:
+            self.logger.error(f"Error migrating tags column: {e}")
     
     def _migrate_from_json(self):
         """Migrate data from JSON files to SQLite."""
@@ -117,9 +143,18 @@ class Database:
             
             self.logger.info("Migrating data from JSON files to SQLite...")
             
-            # Migrate settings
-            settings_file = Path("data/settings.json")
-            if settings_file.exists():
+            # Migrate settings - check multiple possible locations
+            settings_file = None
+            possible_locations = [
+                Path("data/settings.json"),  # Development location
+                Path.home() / ".flutter_launcher" / "data" / "settings.json",  # User data location
+            ]
+            for loc in possible_locations:
+                if loc.exists():
+                    settings_file = loc
+                    break
+            
+            if settings_file and settings_file.exists():
                 try:
                     with open(settings_file, 'r', encoding='utf-8') as f:
                         settings_data = json.load(f)
@@ -135,9 +170,18 @@ class Database:
                 except Exception as e:
                     self.logger.warning(f"Error migrating settings: {e}")
             
-            # Migrate projects
-            projects_file = Path("data/projects.json")
-            if projects_file.exists():
+            # Migrate projects - check multiple possible locations
+            projects_file = None
+            possible_locations = [
+                Path("data/projects.json"),  # Development location
+                Path.home() / ".flutter_launcher" / "data" / "projects.json",  # User data location
+            ]
+            for loc in possible_locations:
+                if loc.exists():
+                    projects_file = loc
+                    break
+            
+            if projects_file and projects_file.exists():
                 try:
                     with open(projects_file, 'r', encoding='utf-8') as f:
                         projects_data = json.load(f)
@@ -235,10 +279,16 @@ class Database:
         
         metadata_json = json.dumps(project_data)
         
+        # Get tags from project_data, default to empty list
+        tags = project_data.get("tags", [])
+        if not isinstance(tags, list):
+            tags = []
+        tags_json = json.dumps(tags)
+        
         cursor.execute("""
             INSERT OR REPLACE INTO projects 
-            (name, path, flutter_version, flutter_sdk_constraint, fvm_enabled, icon_path, last_modified, last_accessed, metadata)
-            VALUES (?, ?, ?, ?, ?, ?, ?, CURRENT_TIMESTAMP, ?)
+            (name, path, flutter_version, flutter_sdk_constraint, fvm_enabled, icon_path, last_modified, last_accessed, metadata, tags)
+            VALUES (?, ?, ?, ?, ?, ?, ?, CURRENT_TIMESTAMP, ?, ?)
         """, (
             project_data.get("name", ""),
             project_data.get("path", ""),
@@ -247,7 +297,8 @@ class Database:
             1 if project_data.get("fvm_enabled") else 0,
             project_data.get("icon_path"),
             project_data.get("last_modified"),
-            metadata_json
+            metadata_json,
+            tags_json
         ))
         
         project_id = cursor.lastrowid
@@ -278,6 +329,15 @@ class Database:
                     project.update(metadata)
                 except:
                     pass
+            # Parse tags if available
+            if project.get("tags"):
+                try:
+                    tags = json.loads(project["tags"])
+                    project["tags"] = tags if isinstance(tags, list) else []
+                except:
+                    project["tags"] = []
+            else:
+                project["tags"] = []
             projects.append(project)
         
         return projects
@@ -298,6 +358,15 @@ class Database:
                     project.update(metadata)
                 except:
                     pass
+            # Parse tags if available
+            if project.get("tags"):
+                try:
+                    tags = json.loads(project["tags"])
+                    project["tags"] = tags if isinstance(tags, list) else []
+                except:
+                    project["tags"] = []
+            else:
+                project["tags"] = []
             return project
         return None
     
@@ -319,6 +388,69 @@ class Database:
         cursor.execute("DELETE FROM projects WHERE path = ?", (path,))
         conn.commit()
         conn.close()
+    
+    def update_project_tags(self, path: str, tags: List[str]):
+        """Update project tags."""
+        conn = self._get_connection()
+        cursor = conn.cursor()
+        tags_json = json.dumps(tags)
+        cursor.execute(
+            "UPDATE projects SET tags = ? WHERE path = ?",
+            (tags_json, path)
+        )
+        conn.commit()
+        conn.close()
+    
+    def get_projects_by_tag(self, tag: str) -> List[Dict[str, Any]]:
+        """Get projects that have a specific tag."""
+        conn = self._get_connection()
+        cursor = conn.cursor()
+        
+        # Get all projects and filter by tag
+        cursor.execute("SELECT * FROM projects ORDER BY last_accessed DESC")
+        rows = cursor.fetchall()
+        conn.close()
+        
+        projects = []
+        for row in rows:
+            project = dict(row)
+            # Parse tags
+            if project.get("tags"):
+                try:
+                    tags = json.loads(project["tags"])
+                    if isinstance(tags, list) and tag in tags:
+                        # Parse metadata if available
+                        if project.get("metadata"):
+                            try:
+                                metadata = json.loads(project["metadata"])
+                                project.update(metadata)
+                            except:
+                                pass
+                        project["tags"] = tags
+                        projects.append(project)
+                except:
+                    pass
+        
+        return projects
+    
+    def get_all_tags(self) -> List[str]:
+        """Get all unique tags from all projects."""
+        conn = self._get_connection()
+        cursor = conn.cursor()
+        cursor.execute("SELECT tags FROM projects WHERE tags IS NOT NULL AND tags != '[]'")
+        rows = cursor.fetchall()
+        conn.close()
+        
+        all_tags = set()
+        for row in rows:
+            try:
+                tags = json.loads(row[0])
+                if isinstance(tags, list):
+                    all_tags.update(tags)
+            except:
+                pass
+        
+        return sorted(list(all_tags))
     
     # SDK methods
     def add_sdk(self, sdk_data: Dict[str, Any]) -> int:

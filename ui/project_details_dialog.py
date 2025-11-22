@@ -1,11 +1,11 @@
 """Project Details Dialog for Flutter Project Launcher Tool."""
 from PyQt6.QtWidgets import (QDialog, QVBoxLayout, QHBoxLayout, QLabel, 
-                             QPushButton, QTextEdit, QScrollArea, QWidget)
-from PyQt6.QtCore import Qt, QTimer
+                             QPushButton, QTextEdit, QScrollArea, QWidget, QLineEdit, QMessageBox)
+from PyQt6.QtCore import Qt, QTimer, pyqtSignal
 from PyQt6.QtGui import QFont
 from pathlib import Path
 from datetime import datetime
-from typing import Dict, Any, Optional
+from typing import Dict, Any, Optional, List
 from services.project_service import ProjectService
 from core.logger import Logger
 
@@ -13,13 +13,21 @@ from core.logger import Logger
 class ProjectDetailsDialog(QDialog):
     """Dialog showing detailed project information."""
     
+    tags_updated = pyqtSignal(str)  # Signal emitted when tags are updated
+    
     def __init__(self, project_path: str, parent=None):
         super().__init__(parent)
+        from core.branding import Branding
+        
         self.project_path = project_path
         self.project_service = ProjectService()
         self.logger = Logger()
         self.setWindowTitle("Project Details")
         self.setMinimumSize(700, 600)
+        
+        # Apply branding icon
+        Branding.apply_window_icon(self)
+        
         self._init_ui()
         # Defer loading until dialog is shown
         QTimer.singleShot(0, self._load_project_details)
@@ -65,6 +73,40 @@ class ProjectDetailsDialog(QDialog):
         scroll.setWidget(details_widget)
         layout.addWidget(scroll, 1)
         
+        # Tags management section
+        tags_section = QWidget(self)
+        tags_layout = QVBoxLayout(tags_section)
+        tags_layout.setSpacing(10)
+        
+        tags_title = QLabel("🏷️ Tags", self)
+        tags_title_font = QFont()
+        tags_title_font.setBold(True)
+        tags_title_font.setPointSize(11)
+        tags_title.setFont(tags_title_font)
+        tags_layout.addWidget(tags_title)
+        
+        # Tags display area
+        self.tags_container = QWidget(self)
+        self.tags_container_layout = QHBoxLayout(self.tags_container)
+        self.tags_container_layout.setSpacing(5)
+        self.tags_container_layout.setContentsMargins(0, 0, 0, 0)
+        tags_layout.addWidget(self.tags_container)
+        
+        # Tag input
+        tag_input_layout = QHBoxLayout()
+        tag_input_label = QLabel("Add Tag:", self)
+        self.tag_input = QLineEdit(self)
+        self.tag_input.setPlaceholderText("Enter tag name and press Enter")
+        self.tag_input.returnPressed.connect(self._add_tag)
+        add_tag_btn = QPushButton("Add", self)
+        add_tag_btn.clicked.connect(self._add_tag)
+        tag_input_layout.addWidget(tag_input_label)
+        tag_input_layout.addWidget(self.tag_input, 1)
+        tag_input_layout.addWidget(add_tag_btn)
+        tags_layout.addLayout(tag_input_layout)
+        
+        layout.addWidget(tags_section)
+        
         # Buttons
         button_layout = QHBoxLayout()
         button_layout.addStretch()
@@ -74,13 +116,28 @@ class ProjectDetailsDialog(QDialog):
         button_layout.addWidget(close_btn)
         
         layout.addLayout(button_layout)
+        
+        # Store current tags
+        self.current_tags: List[str] = []
     
     def _load_project_details(self):
         """Load and display project details."""
         try:
+            # Get project from database to get tags
+            project = self.project_service.db.get_project_by_path(self.project_path)
+            if project:
+                self.current_tags = project.get("tags", [])
+                if not isinstance(self.current_tags, list):
+                    self.current_tags = []
+            else:
+                self.current_tags = []
+            
             # Get project metadata
             metadata = self.project_service.get_project_metadata(self.project_path)
             project_path = Path(self.project_path)
+            
+            # Update tags display
+            self._update_tags_display()
             
             # Build details text
             details = []
@@ -95,6 +152,8 @@ class ProjectDetailsDialog(QDialog):
             details.append(f"Project Name:     {metadata.get('name', 'N/A')}")
             details.append(f"Package Name:     {metadata.get('package_name', metadata.get('name', 'N/A'))}")
             details.append(f"Project Path:     {project_path.resolve()}")
+            if self.current_tags:
+                details.append(f"Tags:             {', '.join([f'#{tag}' for tag in self.current_tags])}")
             details.append("")
             
             # Flutter SDK Information
@@ -267,4 +326,96 @@ class ProjectDetailsDialog(QDialog):
                 return f"{size_bytes:.2f} {unit}"
             size_bytes /= 1024.0
         return f"{size_bytes:.2f} TB"
+    
+    def _update_tags_display(self):
+        """Update tags display in the UI."""
+        # Clear existing tag widgets
+        while self.tags_container_layout.count():
+            item = self.tags_container_layout.takeAt(0)
+            if item.widget():
+                item.widget().setParent(None)
+        
+        # Add tag chips
+        from core.theme import Theme
+        for tag in self.current_tags:
+            tag_widget = QWidget(self.tags_container)
+            tag_layout = QHBoxLayout(tag_widget)
+            tag_layout.setContentsMargins(5, 2, 5, 2)
+            tag_layout.setSpacing(5)
+            
+            tag_label = QLabel(f"#{tag}", tag_widget)
+            tag_label.setStyleSheet(f"""
+                QLabel {{
+                    background-color: {Theme.PRIMARY};
+                    color: white;
+                    padding: 4px 8px;
+                    border-radius: 4px;
+                    font-size: 9pt;
+                }}
+            """)
+            tag_layout.addWidget(tag_label)
+            
+            remove_btn = QPushButton("×", tag_widget)
+            remove_btn.setMaximumSize(20, 20)
+            remove_btn.setStyleSheet(f"""
+                QPushButton {{
+                    background-color: {Theme.ERROR if Theme.ERROR else '#dc3545'};
+                    color: white;
+                    border: none;
+                    border-radius: 10px;
+                    font-size: 12pt;
+                    font-weight: bold;
+                }}
+                QPushButton:hover {{
+                    background-color: {Theme.ERROR_HOVER if hasattr(Theme, 'ERROR_HOVER') else '#c82333'};
+                }}
+            """)
+            remove_btn.clicked.connect(lambda checked, t=tag: self._remove_tag(t))
+            tag_layout.addWidget(remove_btn)
+            
+            self.tags_container_layout.addWidget(tag_widget)
+        
+        self.tags_container_layout.addStretch()
+    
+    def _add_tag(self):
+        """Add a new tag to the project."""
+        tag = self.tag_input.text().strip()
+        if not tag:
+            return
+        
+        # Validate tag (no spaces, special chars)
+        if ' ' in tag or not tag.replace('_', '').replace('-', '').isalnum():
+            QMessageBox.warning(self, "Invalid Tag", 
+                              "Tags can only contain letters, numbers, underscores, and hyphens.\n"
+                              "No spaces allowed.")
+            return
+        
+        if tag in self.current_tags:
+            QMessageBox.information(self, "Tag Exists", f"Tag '{tag}' already exists.")
+            return
+        
+        # Add tag
+        self.current_tags.append(tag)
+        self.project_service.set_tags(self.project_path, self.current_tags)
+        self.tag_input.clear()
+        self._update_tags_display()
+        
+        # Emit signal to notify parent (dashboard) to refresh
+        self.tags_updated.emit(self.project_path)
+        
+        # Reload project details to show updated tags
+        self._load_project_details()
+    
+    def _remove_tag(self, tag: str):
+        """Remove a tag from the project."""
+        if tag in self.current_tags:
+            self.current_tags.remove(tag)
+            self.project_service.set_tags(self.project_path, self.current_tags)
+            self._update_tags_display()
+            
+            # Emit signal to notify parent (dashboard) to refresh
+            self.tags_updated.emit(self.project_path)
+            
+            # Reload project details to show updated tags
+            self._load_project_details()
 

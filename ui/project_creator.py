@@ -115,16 +115,34 @@ class ProjectCreationThread(QThread):
             # If architecture is selected, apply it
             if self.architecture and self.plugin_loader:
                 try:
-                    self.output.emit(f"\nApplying {self.architecture} architecture...")
+                    self.output.emit("")
+                    self.output.emit("=" * 70)
+                    self.output.emit(f"Applying architecture: {self.architecture}")
+                    self.output.emit("=" * 70)
+                    
                     api = self.plugin_loader.get_api()
                     architectures = api.get_registered_architectures()
                     
                     if self.architecture in architectures:
                         arch_func = architectures[self.architecture]
+                        self.output.emit(f"Running architecture generator...")
+                        
+                        # Call architecture generator function
                         arch_func(api, str(project_path))
-                        self.output.emit(f"✓ Architecture {self.architecture} applied successfully")
+                        
+                        self.output.emit("=" * 70)
+                        self.output.emit(f"✓ Architecture '{self.architecture}' applied successfully!")
+                        self.output.emit("=" * 70)
+                    else:
+                        self.output.emit(f"⚠ Warning: Architecture '{self.architecture}' not found in registered architectures")
+                        self.output.emit(f"Available architectures: {', '.join(architectures.keys())}")
                 except Exception as e:
-                    self.output.emit(f"⚠ Warning: Failed to apply architecture: {e}")
+                    self.output.emit("=" * 70)
+                    self.output.emit(f"✗ Error: Failed to apply architecture '{self.architecture}'")
+                    self.output.emit(f"Error details: {str(e)}")
+                    self.output.emit("=" * 70)
+                    import traceback
+                    self.output.emit(traceback.format_exc())
             
             # Project was created successfully, even if exit code was not 0
             self.finished.emit(True, str(project_path))
@@ -156,9 +174,14 @@ class ProjectCreator(QDialog):
     
     def _init_ui(self):
         """Initialize UI components."""
+        from core.branding import Branding
+        
         self.setWindowTitle("Create New Flutter Project")
         self.setMinimumWidth(600)
         self.setMinimumHeight(600)
+        
+        # Apply branding icon
+        Branding.apply_window_icon(self)
         
         layout = QVBoxLayout(self)
         layout.setSpacing(15)
@@ -286,6 +309,10 @@ class ProjectCreator(QDialog):
     
     def _load_plugin_architectures(self):
         """Load plugin-registered architectures."""
+        # Always start with "None" option
+        self.architecture_combo.clear()
+        self.architecture_combo.addItem("None", None)
+        
         if not self.plugin_loader:
             # Ensure "None" is selected by default
             self.architecture_combo.setCurrentIndex(0)
@@ -294,9 +321,15 @@ class ProjectCreator(QDialog):
         api = self.plugin_loader.get_api()
         architectures = api.get_registered_architectures()
         
-        for arch_name, arch_func in architectures.items():
-            display_name = arch_name.replace("_", " ").title()
-            self.architecture_combo.addItem(display_name, arch_name)
+        if architectures:
+            # Add separator if there are architectures
+            self.architecture_combo.insertSeparator(1)
+            
+            # Add architectures with better display names
+            for arch_name, arch_func in architectures.items():
+                # Convert snake_case to Title Case
+                display_name = arch_name.replace("_", " ").title()
+                self.architecture_combo.addItem(display_name, arch_name)
         
         # Ensure "None" is selected by default (index 0)
         self.architecture_combo.setCurrentIndex(0)

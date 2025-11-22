@@ -13,8 +13,17 @@ class TemplateService:
     
     def __init__(self):
         self.logger = Logger()
-        self.templates_dir = Path("data/templates")
-        ensure_directory(str(self.templates_dir))
+        # Use user directory for templates
+        try:
+            app_data_dir = Path.home() / ".flutter_launcher" / "data"
+            app_data_dir.mkdir(parents=True, exist_ok=True)
+            self.templates_dir = app_data_dir / "templates"
+            ensure_directory(str(self.templates_dir))
+        except Exception:
+            # Fallback: use temp directory if user directory fails
+            import tempfile
+            self.templates_dir = Path(tempfile.gettempdir()) / "flustudio_templates"
+            ensure_directory(str(self.templates_dir))
         self.metadata_file = self.templates_dir / "templates.json"
         from core.database import Database
         self.db = Database()

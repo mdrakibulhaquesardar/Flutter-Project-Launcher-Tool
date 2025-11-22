@@ -172,8 +172,18 @@ class PluginStoreDialog(QDialog):
     def _on_store_data_loaded(self, github_plugins: List[Dict[str, Any]], local_plugins: List[Dict[str, Any]]):
         """Handle plugin store data loaded."""
         # Load local store file for built-in plugins if not already loaded
-        store_file = Path("data/plugin_store.json")
-        if not local_plugins and store_file.exists():
+        # Check multiple possible locations
+        store_file = None
+        possible_locations = [
+            Path.home() / ".flutter_launcher" / "data" / "plugin_store.json",  # User data location
+            Path("data/plugin_store.json"),  # Development location
+        ]
+        for loc in possible_locations:
+            if loc.exists():
+                store_file = loc
+                break
+        
+        if not local_plugins and store_file and store_file.exists():
             try:
                 self.store_data = read_json(str(store_file))
                 local_plugins = self.store_data.get("plugins", [])
@@ -231,8 +241,15 @@ class PluginStoreDialog(QDialog):
     
     def _create_default_store(self):
         """Create default plugin store file."""
-        store_file = Path("data/plugin_store.json")
-        store_file.parent.mkdir(parents=True, exist_ok=True)
+        # Use user directory for plugin store file
+        try:
+            app_data_dir = Path.home() / ".flutter_launcher" / "data"
+            app_data_dir.mkdir(parents=True, exist_ok=True)
+            store_file = app_data_dir / "plugin_store.json"
+        except Exception:
+            # Fallback: use temp directory if user directory fails
+            import tempfile
+            store_file = Path(tempfile.gettempdir()) / "flustudio_plugin_store.json"
         
         default_store = {
             "plugins": [
@@ -410,9 +427,30 @@ Status: {'✓ Installed' if is_installed else '✗ Not Installed'}
         
         # Check if it's a builtin plugin (already in plugins folder)
         if plugin.get("download_url") == "local" or plugin.get("repository") == "builtin":
-            # Check if plugin exists locally
-            plugin_path = Path("plugins") / plugin_id
-            if plugin_path.exists():
+            # Check if plugin exists locally - check multiple locations
+            plugin_path = None
+            import sys
+            
+            # Check built-in plugins directory (if running as executable)
+            if getattr(sys, 'frozen', False):
+                base_path = Path(sys.executable).parent
+                builtin_plugins = base_path / "_internal" / "plugins" / plugin_id
+                if builtin_plugins.exists():
+                    plugin_path = builtin_plugins
+            
+            # Check user plugins directory
+            if not plugin_path:
+                user_plugins = Path.home() / ".flutter_launcher" / "plugins" / plugin_id
+                if user_plugins.exists():
+                    plugin_path = user_plugins
+            
+            # Check development plugins directory
+            if not plugin_path:
+                dev_plugins = Path("plugins") / plugin_id
+                if dev_plugins.exists():
+                    plugin_path = dev_plugins
+            
+            if plugin_path and plugin_path.exists():
                 # Register the existing plugin
                 plugin_json = plugin_path / "plugin.json"
                 if plugin_json.exists():

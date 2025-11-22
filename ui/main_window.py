@@ -18,6 +18,7 @@ from ui.sdk_manager_dialog import SDKManagerDialog
 from ui.plugin_manager_dialog import PluginManagerDialog
 from core.logger import Logger
 from core.settings import Settings
+from core.branding import Branding
 from core.plugin_loader import PluginLoader
 from pathlib import Path
 import os
@@ -42,8 +43,16 @@ class MainWindow(QMainWindow):
     def _init_ui(self):
         """Initialize UI components."""
         from core.theme import Theme
-        self.setWindowTitle("FluStudio")
+        from core.branding import Branding
+        from PyQt6.QtGui import QIcon
+        
+        self.setWindowTitle(Branding.APP_NAME)
         self.setMinimumSize(900, 700)
+        
+        # Set window icon
+        icon_path = Branding.get_app_icon_path()
+        if icon_path and icon_path.exists():
+            self.setWindowIcon(QIcon(str(icon_path)))
         
         # Set window background (use system default if BACKGROUND is empty)
         if Theme.BACKGROUND:
@@ -153,6 +162,11 @@ class MainWindow(QMainWindow):
         
         view_logs_action = help_menu.addAction("View Logs")
         view_logs_action.triggered.connect(self._show_logs)
+        
+        help_menu.addSeparator()
+        
+        contributors_action = help_menu.addAction("Contributors")
+        contributors_action.triggered.connect(self._show_contributors)
         
         help_menu.addSeparator()
         
@@ -784,6 +798,12 @@ Esc             Close Dialog/Window
                 f"Error opening browser: {e}"
             )
     
+    def _show_contributors(self):
+        """Show contributors dialog."""
+        from ui.contributors_dialog import ContributorsDialog
+        dialog = ContributorsDialog(self)
+        dialog.exec()
+    
     def _send_feedback(self):
         """Send feedback."""
         QMessageBox.information(
@@ -798,16 +818,22 @@ Esc             Close Dialog/Window
     
     def _show_about(self):
         """Show about dialog."""
-        QMessageBox.about(
-            self,
-            "About FluStudio",
-            """
-            <h2>FluStudio</h2>
-            <p>Version 1.0.0</p>
-            <p>A desktop application for managing Flutter projects.</p>
-            <p>Built with Python and PyQt6</p>
-            """
-        )
+        from core.branding import Branding
+        from PyQt6.QtGui import QPixmap
+        
+        about_msg = QMessageBox(self)
+        about_msg.setWindowTitle(f"About {Branding.APP_NAME}")
+        about_msg.setTextFormat(Qt.TextFormat.RichText)
+        about_msg.setText(Branding.get_about_text())
+        
+        # Set icon if available
+        icon_path = Branding.get_app_icon_path()
+        if icon_path and icon_path.exists():
+            pixmap = QPixmap(str(icon_path))
+            if not pixmap.isNull():
+                about_msg.setIconPixmap(pixmap.scaled(64, 64, Qt.AspectRatioMode.KeepAspectRatio, Qt.TransformationMode.SmoothTransformation))
+        
+        about_msg.exec()
     
     def _restore_window_state(self):
         """Restore window geometry and state."""

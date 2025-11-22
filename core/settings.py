@@ -12,8 +12,21 @@ class Settings:
     def __init__(self):
         self.logger = Logger()
         self.db = Database()
-        self.settings_file = Path("data/settings.json")  # Keep for backward compatibility
-        self.settings_file.parent.mkdir(parents=True, exist_ok=True)
+        # Use user directory for settings file (backward compatibility)
+        # Try to use app data directory, fallback to current directory if writable
+        try:
+            app_data_dir = Path.home() / ".flutter_launcher" / "data"
+            app_data_dir.mkdir(parents=True, exist_ok=True)
+            self.settings_file = app_data_dir / "settings.json"
+        except Exception:
+            # Fallback: try current directory, but don't fail if it doesn't work
+            try:
+                self.settings_file = Path("data/settings.json")
+                self.settings_file.parent.mkdir(parents=True, exist_ok=True)
+            except Exception:
+                # If both fail, use a temp location (settings are in DB anyway)
+                import tempfile
+                self.settings_file = Path(tempfile.gettempdir()) / "flustudio_settings.json"
     
     def _default_settings(self) -> Dict[str, Any]:
         """Return default settings."""
@@ -25,7 +38,13 @@ class Settings:
             "auto_scan": True,
             "scan_paths": [],
             "window_geometry": None,
-            "window_state": None
+            "window_state": None,
+            "vscode_path": None,
+            "android_studio_path": None,
+            "debug_mode": False,
+            "log_level": "INFO",
+            "console_font_size": 9,
+            "console_max_lines": 1000
         }
     
     def save(self):
@@ -110,5 +129,56 @@ class Settings:
     def get_default_sdk(self) -> Optional[str]:
         """Get default Flutter SDK path."""
         return self.get("default_sdk")
+    
+    # Editor path methods
+    def get_vscode_path(self) -> Optional[str]:
+        """Get VS Code executable path."""
+        return self.get("vscode_path")
+    
+    def set_vscode_path(self, path: Optional[str]):
+        """Set VS Code executable path."""
+        self.set("vscode_path", path)
+    
+    def get_android_studio_path(self) -> Optional[str]:
+        """Get Android Studio executable path."""
+        return self.get("android_studio_path")
+    
+    def set_android_studio_path(self, path: Optional[str]):
+        """Set Android Studio executable path."""
+        self.set("android_studio_path", path)
+    
+    # Advanced settings methods
+    def get_debug_mode(self) -> bool:
+        """Get debug mode setting."""
+        return self.get("debug_mode", False)
+    
+    def set_debug_mode(self, enabled: bool):
+        """Set debug mode."""
+        self.set("debug_mode", enabled)
+    
+    def get_log_level(self) -> str:
+        """Get log level setting."""
+        return self.get("log_level", "INFO")
+    
+    def set_log_level(self, level: str):
+        """Set log level."""
+        if level in ["DEBUG", "INFO", "WARNING", "ERROR"]:
+            self.set("log_level", level)
+    
+    def get_console_font_size(self) -> int:
+        """Get console font size."""
+        return self.get("console_font_size", 9)
+    
+    def set_console_font_size(self, size: int):
+        """Set console font size."""
+        self.set("console_font_size", max(6, min(24, size)))  # Clamp between 6-24
+    
+    def get_console_max_lines(self) -> int:
+        """Get console max lines."""
+        return self.get("console_max_lines", 1000)
+    
+    def set_console_max_lines(self, max_lines: int):
+        """Set console max lines."""
+        self.set("console_max_lines", max(100, min(10000, max_lines)))  # Clamp between 100-10000
 
 

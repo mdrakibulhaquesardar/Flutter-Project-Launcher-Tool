@@ -37,50 +37,93 @@ class PluginLoader:
         self.logger.info(f"Loaded {loaded_count} plugin(s)")
         return loaded_count
     
+    def _get_builtin_plugins_dir(self) -> Optional[Path]:
+        """Get built-in plugins directory from executable."""
+        import sys
+        if getattr(sys, 'frozen', False):
+            base_path = Path(sys.executable).parent
+            builtin_plugins = base_path / "_internal" / "plugins"
+            if builtin_plugins.exists():
+                return builtin_plugins
+        return None
+    
     def _auto_register_plugins(self):
         """Auto-register plugins that exist in plugins directory but aren't registered."""
-        plugins_dir = self.registry.plugins_dir
+        # Check both user plugins directory and built-in plugins directory
+        plugins_dirs = []
         
-        if not plugins_dir.exists():
+        # User-installed plugins directory
+        if self.registry.plugins_dir.exists():
+            plugins_dirs.append(self.registry.plugins_dir)
+        
+        # Built-in plugins directory (if running as executable)
+        builtin_plugins = self._get_builtin_plugins_dir()
+        if builtin_plugins:
+            plugins_dirs.append(builtin_plugins)
+        
+        if not plugins_dirs:
             return
         
-        # Scan for plugin directories
-        for item in plugins_dir.iterdir():
-            if not item.is_dir() or item.name.startswith('.'):
+        # Scan for plugin directories in all locations
+        for plugins_dir in plugins_dirs:
+            try:
+                for item in plugins_dir.iterdir():
+                    if not item.is_dir() or item.name.startswith('.'):
+                        continue
+                    
+                    plugin_id = item.name
+                    plugin_json = item / "plugin.json"
+                    
+                    # Skip if already registered
+                    if self.registry.get_plugin(plugin_id):
+                        continue
+                    
+                    # Try to register if plugin.json exists
+                    if plugin_json.exists():
+                        try:
+                            metadata = self._load_plugin_json(plugin_json)
+                            if metadata:
+                                self.registry.register_plugin(
+                                    plugin_id=plugin_id,
+                                    name=metadata.get("name", plugin_id),
+                                    version=metadata.get("version", "1.0.0"),
+                                    author=metadata.get("author", "Unknown"),
+                                    description=metadata.get("description", ""),
+                                    plugin_type=metadata.get("plugin_type", "general"),
+                                    path=str(item),
+                                    enabled=metadata.get("enabled", True)
+                                )
+                                self.logger.info(f"Auto-registered plugin: {plugin_id}")
+                        except Exception as e:
+                            self.logger.warning(f"Failed to auto-register plugin {plugin_id}: {e}")
+            except Exception as e:
+                self.logger.warning(f"Error scanning plugins directory {plugins_dir}: {e}")
                 continue
-            
-            plugin_id = item.name
-            plugin_json = item / "plugin.json"
-            
-            # Skip if already registered
-            if self.registry.get_plugin(plugin_id):
-                continue
-            
-            # Try to register if plugin.json exists
-            if plugin_json.exists():
-                try:
-                    metadata = self._load_plugin_json(plugin_json)
-                    if metadata:
-                        self.registry.register_plugin(
-                            plugin_id=plugin_id,
-                            name=metadata.get("name", plugin_id),
-                            version=metadata.get("version", "1.0.0"),
-                            author=metadata.get("author", "Unknown"),
-                            description=metadata.get("description", ""),
-                            plugin_type=metadata.get("plugin_type", "general"),
-                            path=str(item),
-                            enabled=metadata.get("enabled", True)
-                        )
-                        self.logger.info(f"Auto-registered plugin: {plugin_id}")
-                except Exception as e:
-                    self.logger.warning(f"Failed to auto-register plugin {plugin_id}: {e}")
     
     def load_plugin(self, plugin_id: str) -> bool:
         """Load a single plugin."""
         try:
             plugin_info = self.registry.get_plugin(plugin_id)
+            
+            # If not in registry, try to find in built-in plugins
             if not plugin_info:
-                self.logger.warning(f"Plugin not found in registry: {plugin_id}")
+                builtin_plugins = self._get_builtin_plugins_dir()
+                if builtin_plugins:
+                    plugin_path = builtin_plugins / plugin_id
+                    if plugin_path.exists():
+                        plugin_json = plugin_path / "plugin.json"
+                        if plugin_json.exists():
+                            metadata = self._load_plugin_json(plugin_json)
+                            if metadata:
+                                plugin_info = {
+                                    "id": plugin_id,
+                                    "path": str(plugin_path),
+                                    "enabled": metadata.get("enabled", True),
+                                    **metadata
+                                }
+            
+            if not plugin_info:
+                self.logger.warning(f"Plugin not found in registry or built-in plugins: {plugin_id}")
                 return False
             
             if not plugin_info.get("enabled", False):

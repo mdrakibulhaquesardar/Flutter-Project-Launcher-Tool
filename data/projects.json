@@ -1,0 +1,230 @@
+{
+  "projects": [
+    {
+      "name": "flutter_trial_checker_package",
+      "package_name": "flutter_trial_checker_package",
+      "path": "D:\\code Station\\flutter_trial_checker_package",
+      "flutter_version": "Flutter 3.38.3",
+      "flutter_sdk_constraint": "^3.5.2\n  flutter:",
+      "fvm_enabled": false,
+      "icon_path": null,
+      "last_modified": "2024-10-01T00:43:40.723696",
+      "dependencies": {
+        "flutter": {
+          "sdk": "flutter"
+        }
+      },
+      "tags": []
+    },
+    {
+      "name": "aaaa",
+      "package_name": "aaaa",
+      "path": "D:\\txt\\aaaa",
+      "flutter_version": "Flutter 3.38.3",
+      "flutter_sdk_constraint": "^3.10.1\n\n# Dependencies specify other packages that your package needs in order to work.\n# To automatically upgrade your package dependencies to the latest versions\n# consider running `flutter pub upgrade --major-versions`. Alternatively,\n# dependencies can be manually updated by changing the version numbers below to\n# the latest version available on pub.dev. To see which dependencies have newer\n# versions available, run `flutter pub outdated`.\ndependencies:\n  flutter:\n    sdk: flutter\n\n  # The following adds the Cupertino Icons font to your application.\n  # Use with the CupertinoIcons class for iOS style icons.\n  cupertino_icons: ^1.0.8\n\ndev_dependencies:\n  flutter_test:\n    sdk: flutter\n\n  # The",
+      "fvm_enabled": false,
+      "icon_path": "D:\\txt\\aaaa\\android\\app\\src\\main\\res\\mipmap-hdpi\\ic_launcher.png",
+      "last_modified": "2025-11-22T17:27:02.198363",
+      "dependencies": {
+        "flutter": {
+          "sdk": "flutter"
+        },
+        "cupertino_icons": "^1.0.8"
+      },
+      "tags": []
+    },
+    {
+      "name": "llll",
+      "package_name": "llll",
+      "path": "D:\\txt\\llll",
+      "flutter_version": "Flutter 3.38.3",
+      "flutter_sdk_constraint": "^3.10.1\n  flutter:",
+      "fvm_enabled": false,
+      "icon_path": null,
+      "last_modified": "2025-11-22T17:33:56.025817",
+      "dependencies": {
+        "flutter": {
+          "sdk": "flutter"
+        },
+        "plugin_platform_interface": "^2.0.2"
+      },
+      "tags": []
+    },
+    {
+      "name": "tets",
+      "package_name": "tets",
+      "path": "D:\\txt\\tets",
+      "flutter_version": "Flutter 3.38.3",
+      "flutter_sdk_constraint": "^3.10.1\n\n# Dependencies specify other packages that your package needs in order to work.\n# To automatically upgrade your package dependencies to the latest versions\n# consider running `flutter pub upgrade --major-versions`. Alternatively,\n# dependencies can be manually updated by changing the version numbers below to\n# the latest version available on pub.dev. To see which dependencies have newer\n# versions available, run `flutter pub outdated`.\ndependencies:\n  flutter:\n    sdk: flutter\n\n  # The following adds the Cupertino Icons font to your application.\n  # Use with the CupertinoIcons class for iOS style icons.\n  cupertino_icons: ^1.0.8\n\ndev_dependencies:\n  flutter_test:\n    sdk: flutter\n\n  # The",
+      "fvm_enabled": false,
+      "icon_path": "D:\\txt\\tets\\android\\app\\src\\main\\res\\mipmap-hdpi\\ic_launcher.png",
+      "last_modified": "2025-11-22T17:24:46.077738",
+      "dependencies": {
+        "flutter": {
+          "sdk": "flutter"
+        },
+        "cupertino_icons": "^1.0.8"
+      },
+      "tags": []
+    },
+    {
+      "name": "time_wasting_championship",
+      "package_name": "time_wasting_championship",
+      "path": "D:\\code Station\\time_wasting_championship",
+      "flutter_version": "Flutter 3.38.3",
+      "flutter_sdk_constraint": "^3.5.2\n\n# Dependencies specify other packages that your package needs in order to work.\n# To automatically upgrade your package dependencies to the latest versions\n# consider running `flutter pub upgrade --major-versions`. Alternatively,\n# dependencies can be manually updated by changing the version numbers below to\n# the latest version available on pub.dev. To see which dependencies have newer\n# versions available, run `flutter pub outdated`.\ndependencies:\n  flutter:\n    sdk: flutter\n\n\n  # The following adds the Cupertino Icons font to your application.\n  # Use with the CupertinoIcons class for iOS style icons.\n  cupertino_icons: ^1.0.8\n  get: ^4.6.6\n  appwrite: ^13.1.1\n  fluttertoast: ^8.2.8\n  nb_utils: ^7.0.3\n  flutter_screenutil: ^5.9.3\n  logger: any\n  spider: ^4.2.2\n  flutter_blurhash: ^0.8.2\n  persistent_bottom_nav_bar: ^6.2.1\n  flutter_native_splash: ^2.4.4\n  rive: ^0.13.20\n\n\n\ndev_dependencies:\n  flutter_test:\n    sdk: flutter\n\n  # The",
+      "fvm_enabled": false,
+      "icon_path": "D:\\code Station\\time_wasting_championship\\android\\app\\src\\main\\res\\mipmap-hdpi\\ic_launcher.png",
+      "last_modified": "2025-04-11T19:27:52.909675",
+      "dependencies": {
+        "flutter": {
+          "sdk": "flutter"
+        },
+        "cupertino_icons": "^1.0.8",
+        "get": "^4.6.6",
+        "appwrite": "^13.1.1",
+        "fluttertoast": "^8.2.8",
+        "nb_utils": "^7.0.3",
+        "flutter_screenutil": "^5.9.3",
+        "logger": "any",
+        "spider": "^4.2.2",
+        "flutter_blurhash": "^0.8.2",
+        "persistent_bottom_nav_bar": "^6.2.1",
+        "flutter_native_splash": "^2.4.4",
+        "rive": "^0.13.20"
+      },
+      "tags": []
+    },
+    {
+      "name": "file_organizer",
+      "package_name": "file_organizer",
+      "path": "D:\\code Station\\File_Org_CLI",
+      "flutter_version": "Flutter 3.38.3",
+      "flutter_sdk_constraint": "^3.1.0",
+      "fvm_enabled": false,
+      "icon_path": null,
+      "last_modified": "2025-01-04T13:50:26.088138",
+      "dependencies": {
+        "win32": "^5.1.1",
+        "args": "^2.4.2",
+        "path": "^1.8.0",
+        "cli_progress_bar": "^1.0.0",
+        "colorize": "^3.0.0",
+        "console": "^4.1.0",
+        "archive": "^3.4.9",
+        "logging": "^1.2.0"
+      },
+      "tags": []
+    },
+    {
+      "name": "app_presensi_pegawai",
+      "package_name": "app_presensi_pegawai",
+      "path": "D:\\code Station\\attendance_flutter",
+      "flutter_version": "Flutter 3.38.3",
+      "flutter_sdk_constraint": ">=2.12.0 <3.0.0",
+      "fvm_enabled": false,
+      "icon_path": "D:\\code Station\\attendance_flutter\\android\\app\\src\\main\\res\\mipmap-hdpi\\ic_launcher.png",
+      "last_modified": "2025-06-15T18:08:50.730817",
+      "dependencies": {
+        "flutter": {
+          "sdk": "flutter"
+        },
+        "cupertino_icons": "^1.0.2",
+        "http": "^0.13.4",
+        "json_annotation": "^4.4.0",
+        "json_serializable": "^6.1.4",
+        "geolocator": "^11.0.0",
+        "shared_preferences": "^2.0.12",
+        "flutter_feather_icons": "^2.0.0+1",
+        "intl": "^0.17.0"
+      },
+      "tags": []
+    },
+    {
+      "name": "flutter_app",
+      "package_name": "flutter_app",
+      "path": "D:\\code Station\\fin_calculetor",
+      "flutter_version": "FVM: 3.24.2",
+      "flutter_sdk_constraint": null,
+      "fvm_enabled": false,
+      "icon_path": null,
+      "last_modified": "2025-01-18T15:53:11.539896",
+      "dependencies": {
+        "url_launcher": "^6.2.6",
+        "google_fonts": "^6.2.1",
+        "analyzer": "^6.7.0",
+        "intl": "^0.19.0",
+        "nylo_framework": "^6.4.0",
+        "pretty_dio_logger": "^1.4.0",
+        "cupertino_icons": "^1.0.8",
+        "path_provider": "^2.1.4",
+        "flutter_local_notifications": "^18.0.1",
+        "font_awesome_flutter": "^10.8.0",
+        "scaffold_ui": "^1.1.5",
+        "nb_utils": "^7.0.7",
+        "google_mobile_ads": "^5.2.0",
+        "syncfusion_flutter_charts": "^28.1.35",
+        "flutter": {
+          "sdk": "flutter"
+        },
+        "flutter_localizations": {
+          "sdk": "flutter"
+        }
+      },
+      "tags": []
+    },
+    {
+      "name": "epub_demo",
+      "package_name": "epub_demo",
+      "path": "D:\\code Station\\EPUB_demo\\epub_demo",
+      "flutter_version": "Flutter 3.38.3",
+      "flutter_sdk_constraint": ">=2.19.6 <3.0.0",
+      "fvm_enabled": false,
+      "icon_path": "D:\\code Station\\EPUB_demo\\epub_demo\\android\\app\\src\\main\\res\\mipmap-hdpi\\ic_launcher.png",
+      "last_modified": "2025-01-03T14:07:19.319452",
+      "dependencies": {
+        "flutter": {
+          "sdk": "flutter"
+        },
+        "cupertino_icons": "^1.0.2",
+        "html": "^0.15.5",
+        "epubx": "^4.0.0",
+        "flutter_html": "^2.0.0"
+      },
+      "tags": []
+    },
+    {
+      "name": "flutter_trial_checker",
+      "package_name": "flutter_trial_checker",
+      "path": "D:\\code Station\\flutter_trial_checker",
+      "flutter_version": "Flutter 3.38.3",
+      "flutter_sdk_constraint": "^3.5.2\n  flutter:",
+      "fvm_enabled": false,
+      "icon_path": null,
+      "last_modified": "2024-10-01T01:13:15.830534",
+      "dependencies": {
+        "flutter": {
+          "sdk": "flutter"
+        },
+        "http": "any",
+        "shared_preferences": "any"
+      },
+      "tags": []
+    },
+    {
+      "name": "flx_cli",
+      "package_name": "flx_cli",
+      "path": "D:\\code Station\\Clean_flx_cli_tool\\flx",
+      "flutter_version": "Flutter 3.38.3",
+      "flutter_sdk_constraint": ">=3.0.0 <4.0.0",
+      "fvm_enabled": false,
+      "icon_path": null,
+      "last_modified": "2025-07-13T20:10:21.493652",
+      "dependencies": {
+        "args": "^2.4.2",
+        "path": "^1.9.0"
+      },
+      "tags": []
+    }
+  ]
+}

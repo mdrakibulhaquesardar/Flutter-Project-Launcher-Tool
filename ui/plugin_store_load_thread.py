@@ -32,10 +32,19 @@ class PluginStoreLoadThread(QThread):
                 self.progress.emit(f"Error fetching from GitHub: {str(e)}")
                 github_plugins = []
             
-            # Load local plugins
+            # Load local plugins - check multiple possible locations
             self.progress.emit("Loading local plugins...")
-            store_file = Path("data/plugin_store.json")
-            if store_file.exists():
+            store_file = None
+            possible_locations = [
+                Path.home() / ".flutter_launcher" / "data" / "plugin_store.json",  # User data location
+                Path("data/plugin_store.json"),  # Development location
+            ]
+            for loc in possible_locations:
+                if loc.exists():
+                    store_file = loc
+                    break
+            
+            if store_file and store_file.exists():
                 try:
                     store_data = read_json(str(store_file))
                     local_plugins = store_data.get("plugins", [])

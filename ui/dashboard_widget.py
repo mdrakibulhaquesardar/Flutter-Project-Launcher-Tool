@@ -1,6 +1,6 @@
 """Dashboard widget for Flutter Project Launcher Tool."""
 from PyQt6.QtWidgets import (QWidget, QVBoxLayout, QHBoxLayout, QPushButton, 
-                             QScrollArea, QLabel, QMessageBox, QMenu, QProgressBar)
+                             QScrollArea, QLabel, QMessageBox, QMenu, QProgressBar, QComboBox)
 from PyQt6.QtCore import Qt, pyqtSignal, QThread
 from core.commands import FlutterCommandThread
 from PyQt6.QtGui import QFont
@@ -13,6 +13,7 @@ from ui.project_details_dialog import ProjectDetailsDialog
 from ui.project_load_thread import ProjectLoadThread
 from ui.project_refresh_thread import ProjectRefreshThread
 from core.logger import Logger
+from core.settings import Settings
 from pathlib import Path
 import subprocess
 import os
@@ -31,9 +32,12 @@ class DashboardWidget(QWidget):
         self.project_service = ProjectService()
         self.device_service = DeviceService()
         self.logger = Logger()
+        self.settings = Settings()
         self.current_project: Optional[str] = None
         self.load_thread: Optional[ProjectLoadThread] = None
         self.refresh_thread: Optional[ProjectRefreshThread] = None
+        self.project_items = []  # Store project items
+        self.current_tag_filter: Optional[str] = None  # Current tag filter
         self._init_ui()
         self._load_projects()
     
@@ -60,6 +64,16 @@ class DashboardWidget(QWidget):
         
         header_layout.addStretch()
         
+        # Tag filter dropdown
+        tag_filter_label = QLabel("Filter by Tag:", self)
+        header_layout.addWidget(tag_filter_label)
+        
+        self.tag_filter_combo = QComboBox(self)
+        self.tag_filter_combo.setMinimumWidth(150)
+        self.tag_filter_combo.addItem("All Projects", None)
+        self.tag_filter_combo.currentIndexChanged.connect(self._on_tag_filter_changed)
+        header_layout.addWidget(self.tag_filter_combo)
+        
         # Create project button
         self.create_btn = QPushButton("➕ Create Project", self)
         self.create_btn.clicked.connect(self.create_project_requested.emit)
@@ -81,64 +95,24 @@ class DashboardWidget(QWidget):
         self.projects_scroll = QScrollArea(self)
         self.projects_scroll.setWidgetResizable(True)
         self.projects_scroll.setHorizontalScrollBarPolicy(Qt.ScrollBarPolicy.ScrollBarAlwaysOff)
+        self.projects_scroll.setStyleSheet("""
+            QScrollArea {
+                border: none;
+                background-color: transparent;
+            }
+        """)
         
         self.projects_widget = QWidget()
         self.projects_layout = QVBoxLayout(self.projects_widget)
-        self.projects_layout.setSpacing(10)
+        self.projects_layout.setSpacing(12)
+        self.projects_layout.setContentsMargins(5, 5, 5, 5)
         self.projects_layout.addStretch()
         
         self.projects_scroll.setWidget(self.projects_widget)
         layout.addWidget(self.projects_scroll, 1)
         
-        # Quick actions (shown when project selected)
-        self.actions_widget = QWidget(self)
-        self.actions_widget.setVisible(False)
-        actions_layout = QHBoxLayout(self.actions_widget)
-        actions_layout.setSpacing(10)
-        
-        actions_label = QLabel("Quick Actions:", self.actions_widget)
-        actions_label.setFont(QFont("", 10, QFont.Weight.Bold))
-        actions_layout.addWidget(actions_label)
-        
-        self.run_btn = QPushButton("🏃 Run", self.actions_widget)
-        self.run_btn.clicked.connect(self._run_project)
-        actions_layout.addWidget(self.run_btn)
-        
-        self.build_apk_btn = QPushButton("📦 Build APK", self.actions_widget)
-        self.build_apk_btn.clicked.connect(self._build_apk)
-        actions_layout.addWidget(self.build_apk_btn)
-        
-        self.build_bundle_btn = QPushButton("🎁 Build Bundle", self.actions_widget)
-        self.build_bundle_btn.clicked.connect(self._build_bundle)
-        actions_layout.addWidget(self.build_bundle_btn)
-        
-        self.pub_get_btn = QPushButton("🔄 Pub Get", self.actions_widget)
-        self.pub_get_btn.clicked.connect(self._pub_get)
-        actions_layout.addWidget(self.pub_get_btn)
-        
-        self.clean_btn = QPushButton("♻ Clean", self.actions_widget)
-        self.clean_btn.clicked.connect(self._clean_project)
-        actions_layout.addWidget(self.clean_btn)
-        
-        self.details_btn = QPushButton("ℹ️ Details", self.actions_widget)
-        self.details_btn.clicked.connect(self._show_project_details)
-        actions_layout.addWidget(self.details_btn)
-        
-        actions_layout.addStretch()
-        
-        self.open_vscode_btn = QPushButton("📝 VS Code", self.actions_widget)
-        self.open_vscode_btn.clicked.connect(self._open_vscode)
-        actions_layout.addWidget(self.open_vscode_btn)
-        
-        self.open_android_studio_btn = QPushButton("🛠 Android Studio", self.actions_widget)
-        self.open_android_studio_btn.clicked.connect(self._open_android_studio)
-        actions_layout.addWidget(self.open_android_studio_btn)
-        
-        self.open_folder_btn = QPushButton("📂 Open Folder", self.actions_widget)
-        self.open_folder_btn.clicked.connect(self._open_folder)
-        actions_layout.addWidget(self.open_folder_btn)
-        
-        layout.addWidget(self.actions_widget)
+        # Load available tags for filter
+        self._load_tag_filter_options()
         
         # Progress bar (for build commands and project loading)
         self.progress_bar = QProgressBar(self)
@@ -162,11 +136,12 @@ class DashboardWidget(QWidget):
     
     def _load_projects(self, refresh_versions: bool = False):
         """Load and display recent projects using background thread."""
+        # Ensure UI is initialized
+        if not hasattr(self, 'progress_bar') or not hasattr(self, 'loading_label'):
+            return
+        
         # Clear existing projects
-        while self.projects_layout.count() > 1:  # Keep stretch
-            item = self.projects_layout.takeAt(0)
-            if item.widget():
-                item.widget().deleteLater()
+        self._clear_projects_layout()
         
         # Stop any existing threads
         if self.load_thread and self.load_thread.isRunning():
@@ -181,7 +156,8 @@ class DashboardWidget(QWidget):
         self.progress_bar.setFormat("Loading projects...")
         self.loading_label.setVisible(True)
         self.loading_label.setText("Loading projects...")
-        self.refresh_btn.setEnabled(False)
+        if hasattr(self, 'refresh_btn'):
+            self.refresh_btn.setEnabled(False)
         
         # If refresh_versions is True, first load projects, then refresh them in parallel
         if refresh_versions:
@@ -212,7 +188,17 @@ class DashboardWidget(QWidget):
         project_item.clicked.connect(self._on_project_selected)
         project_item.run_clicked.connect(self._on_project_run)
         project_item.open_clicked.connect(self._on_project_open)
-        self.projects_layout.insertWidget(self.projects_layout.count() - 1, project_item)
+        project_item.build_apk_clicked.connect(self._on_build_apk_from_context)
+        project_item.build_bundle_clicked.connect(self._on_build_bundle_from_context)
+        project_item.view_details_clicked.connect(self._on_view_details_from_context)
+        project_item.open_vscode_clicked.connect(self._on_open_vscode_from_context)
+        project_item.open_android_studio_clicked.connect(self._on_open_android_studio_from_context)
+        project_item.copy_path_clicked.connect(self._on_copy_path_from_context)
+        project_item.manage_tags_clicked.connect(self._on_manage_tags_from_context)
+        project_item.remove_from_list_clicked.connect(self._on_remove_from_list_from_context)
+        
+        self.project_items.append(project_item)
+        self._add_project_item_to_layout(project_item)
     
     def _on_projects_loaded(self, projects: list):
         """Handle all projects loaded."""
@@ -229,6 +215,91 @@ class DashboardWidget(QWidget):
         
         self.logger.info(f"Loaded {len(projects)} project(s)")
     
+    def _clear_projects_layout(self):
+        """Clear all project items from layout."""
+        self.project_items.clear()
+        # Clear layout
+        while self.projects_layout.count():
+            item = self.projects_layout.takeAt(0)
+            if item.widget():
+                item.widget().setParent(None)
+        # Add stretch back
+        self.projects_layout.addStretch()
+    
+    def _add_project_item_to_layout(self, project_item: ProjectItem):
+        """Add project item to layout."""
+        # Insert before the stretch item (which is at the end)
+        self.projects_layout.insertWidget(self.projects_layout.count() - 1, project_item)
+    
+    def _load_tag_filter_options(self):
+        """Load available tags into filter dropdown."""
+        self.tag_filter_combo.clear()
+        self.tag_filter_combo.addItem("All Projects", None)
+        
+        tags = self.project_service.get_all_tags()
+        if tags:
+            self.tag_filter_combo.insertSeparator(1)
+            for tag in tags:
+                self.tag_filter_combo.addItem(f"#{tag}", tag)
+    
+    def _on_tag_filter_changed(self, index: int):
+        """Handle tag filter selection change."""
+        # Prevent triggering during initialization
+        if not hasattr(self, 'project_service'):
+            return
+        
+        tag = self.tag_filter_combo.currentData()
+        self.current_tag_filter = tag
+        
+        if tag:
+            # Filter projects by tag
+            projects = self.project_service.get_projects_by_tag(tag)
+            self._display_filtered_projects(projects)
+        else:
+            # Show all projects - only if UI is fully initialized
+            if hasattr(self, 'progress_bar'):
+                self._load_projects()
+            else:
+                # UI not ready yet, just store the filter
+                pass
+    
+    def _display_filtered_projects(self, projects: list):
+        """Display filtered projects."""
+        self._clear_projects_layout()
+        if hasattr(self, 'progress_bar'):
+            self.progress_bar.setVisible(False)
+        if hasattr(self, 'loading_label'):
+            self.loading_label.setVisible(False)
+        if hasattr(self, 'refresh_btn'):
+            self.refresh_btn.setEnabled(True)
+        
+        if not projects:
+            no_projects = QLabel(f"No projects found with tag '{self.current_tag_filter}'", self)
+            no_projects.setAlignment(Qt.AlignmentFlag.AlignCenter)
+            from core.theme import Theme
+            no_projects.setStyleSheet(f"color: {Theme.TEXT_SECONDARY}; padding: 20px;")
+            self.projects_layout.insertWidget(0, no_projects)
+        else:
+            # Add filtered projects
+            for project_data in projects:
+                project_item = ProjectItem(project_data, self)
+                project_item.clicked.connect(self._on_project_selected)
+                project_item.run_clicked.connect(self._on_project_run)
+                project_item.open_clicked.connect(self._on_project_open)
+                project_item.build_apk_clicked.connect(self._on_build_apk_from_context)
+                project_item.build_bundle_clicked.connect(self._on_build_bundle_from_context)
+                project_item.view_details_clicked.connect(self._on_view_details_from_context)
+                project_item.open_vscode_clicked.connect(self._on_open_vscode_from_context)
+                project_item.open_android_studio_clicked.connect(self._on_open_android_studio_from_context)
+                project_item.copy_path_clicked.connect(self._on_copy_path_from_context)
+                project_item.manage_tags_clicked.connect(self._on_manage_tags_from_context)
+                project_item.remove_from_list_clicked.connect(self._on_remove_from_list_from_context)
+                
+                self.project_items.append(project_item)
+                self._add_project_item_to_layout(project_item)
+        
+        self.logger.info(f"Displayed {len(projects)} filtered project(s)")
+    
     def _on_projects_loaded_for_refresh(self, projects: list):
         """Handle projects loaded, now refresh versions in parallel."""
         if not projects:
@@ -236,10 +307,7 @@ class DashboardWidget(QWidget):
             return
         
         # Clear existing projects before refreshing
-        while self.projects_layout.count() > 1:  # Keep stretch
-            item = self.projects_layout.takeAt(0)
-            if item.widget():
-                item.widget().deleteLater()
+        self._clear_projects_layout()
         
         # Now refresh versions in parallel
         self.loading_label.setText(f"Refreshing versions for {len(projects)} projects...")
@@ -259,7 +327,17 @@ class DashboardWidget(QWidget):
         project_item.clicked.connect(self._on_project_selected)
         project_item.run_clicked.connect(self._on_project_run)
         project_item.open_clicked.connect(self._on_project_open)
-        self.projects_layout.insertWidget(self.projects_layout.count() - 1, project_item)
+        project_item.build_apk_clicked.connect(self._on_build_apk_from_context)
+        project_item.build_bundle_clicked.connect(self._on_build_bundle_from_context)
+        project_item.view_details_clicked.connect(self._on_view_details_from_context)
+        project_item.open_vscode_clicked.connect(self._on_open_vscode_from_context)
+        project_item.open_android_studio_clicked.connect(self._on_open_android_studio_from_context)
+        project_item.copy_path_clicked.connect(self._on_copy_path_from_context)
+        project_item.manage_tags_clicked.connect(self._on_manage_tags_from_context)
+        project_item.remove_from_list_clicked.connect(self._on_remove_from_list_from_context)
+        
+        self.project_items.append(project_item)
+        self._add_project_item_to_layout(project_item)
     
     def _on_refresh_finished(self, projects: list):
         """Handle refresh finished."""
@@ -279,7 +357,6 @@ class DashboardWidget(QWidget):
     def _on_project_selected(self, project_path: str):
         """Handle project selection."""
         self.current_project = project_path
-        self.actions_widget.setVisible(True)
         self.logger.info(f"Selected project: {project_path}")
     
     def _show_project_details(self):
@@ -289,7 +366,18 @@ class DashboardWidget(QWidget):
             return
         
         dialog = ProjectDetailsDialog(self.current_project, self)
+        dialog.tags_updated.connect(self._on_tags_updated)
         dialog.exec()
+    
+    def _on_tags_updated(self, project_path: str):
+        """Handle tags updated signal from project details dialog."""
+        self._load_tag_filter_options()
+        # Reload projects based on current filter
+        if self.current_tag_filter:
+            projects = self.project_service.get_projects_by_tag(self.current_tag_filter)
+            self._display_filtered_projects(projects)
+        else:
+            self._load_projects()
     
     def _on_project_run(self, project_path: str):
         """Handle run project action."""
@@ -465,14 +553,8 @@ class DashboardWidget(QWidget):
             QMessageBox.warning(self, "No Project", "Please select a project first.")
             return
         
-        try:
-            if os.name == 'nt':
-                subprocess.Popen(["code", path], shell=True)
-            else:
-                subprocess.Popen(["code", path])
-            self.logger.info(f"Opened in VS Code: {path}")
-        except Exception as e:
-            QMessageBox.warning(self, "Error", f"Could not open VS Code: {e}")
+        # Use settings-based editor opening
+        self._open_in_editor(path, "code")
     
     def _open_android_studio(self, project_path: Optional[str] = None):
         """Open project in Android Studio."""
@@ -481,14 +563,8 @@ class DashboardWidget(QWidget):
             QMessageBox.warning(self, "No Project", "Please select a project first.")
             return
         
-        try:
-            if os.name == 'nt':
-                subprocess.Popen(["studio64", path], shell=True)
-            else:
-                subprocess.Popen(["studio", path])
-            self.logger.info(f"Opened in Android Studio: {path}")
-        except Exception as e:
-            QMessageBox.warning(self, "Error", f"Could not open Android Studio: {e}")
+        # Use settings-based editor opening
+        self._open_in_editor(path, "studio")
     
     def _open_folder(self, project_path: Optional[str] = None):
         """Open project folder in file explorer."""
@@ -539,8 +615,110 @@ class DashboardWidget(QWidget):
     
     def on_project_created(self, project_path: str):
         """Handle new project creation."""
+        self._load_tag_filter_options()  # Refresh tag filter options
         self._load_projects()
         self.current_project = project_path
-        self.actions_widget.setVisible(True)
+    
+    def _on_build_apk_from_context(self, project_path: str):
+        """Handle build APK from context menu."""
+        self.current_project = project_path
+        self._build_apk()
+    
+    def _on_build_bundle_from_context(self, project_path: str):
+        """Handle build bundle from context menu."""
+        self.current_project = project_path
+        self._build_bundle()
+    
+    def _on_view_details_from_context(self, project_path: str):
+        """Handle view details from context menu."""
+        dialog = ProjectDetailsDialog(project_path, self)
+        dialog.tags_updated.connect(self._on_tags_updated)
+        dialog.exec()
+    
+    def _on_open_vscode_from_context(self, project_path: str):
+        """Handle open in VS Code from context menu."""
+        self._open_in_editor(project_path, "code")
+    
+    def _on_open_android_studio_from_context(self, project_path: str):
+        """Handle open in Android Studio from context menu."""
+        self._open_in_editor(project_path, "studio")
+    
+    def _on_copy_path_from_context(self, project_path: str):
+        """Handle copy path from context menu."""
+        from PyQt6.QtWidgets import QApplication
+        clipboard = QApplication.clipboard()
+        clipboard.setText(project_path)
+        self.logger.info(f"Copied path to clipboard: {project_path}")
+    
+    def _on_manage_tags_from_context(self, project_path: str):
+        """Handle manage tags from context menu."""
+        from ui.project_details_dialog import ProjectDetailsDialog
+        dialog = ProjectDetailsDialog(project_path, self)
+        dialog.tags_updated.connect(self._on_tags_updated)
+        dialog.exec()
+    
+    def _on_remove_from_list_from_context(self, project_path: str):
+        """Handle remove from list from context menu."""
+        reply = QMessageBox.question(
+            self, "Remove Project",
+            f"Remove '{Path(project_path).name}' from the project list?\n\n"
+            "This will not delete the project files.",
+            QMessageBox.StandardButton.Yes | QMessageBox.StandardButton.No
+        )
+        
+        if reply == QMessageBox.StandardButton.Yes:
+            self.project_service.remove_project(project_path)
+            if self.current_project == project_path:
+                self.current_project = None
+            self._load_tag_filter_options()  # Refresh tag filter options
+            # Reload projects based on current filter
+            if self.current_tag_filter:
+                projects = self.project_service.get_projects_by_tag(self.current_tag_filter)
+                self._display_filtered_projects(projects)
+            else:
+                self._load_projects()
+    
+    def _open_in_editor(self, project_path: str, editor: str):
+        """Open project in editor (VS Code or Android Studio)."""
+        import subprocess
+        import os
+        
+        try:
+            if editor == "code":
+                # Try VS Code from settings first
+                vscode_path = self.settings.get_vscode_path()
+                if vscode_path and Path(vscode_path).exists():
+                    subprocess.Popen([vscode_path, project_path], shell=False)
+                else:
+                    # Fallback to command line
+                    if os.name == 'nt':  # Windows
+                        subprocess.Popen(["code", project_path], shell=False)
+                    else:  # Linux/macOS
+                        subprocess.Popen(["code", project_path])
+            elif editor == "studio":
+                # Try Android Studio from settings first
+                as_path = self.settings.get_android_studio_path()
+                if as_path and Path(as_path).exists():
+                    subprocess.Popen([as_path, project_path], shell=False)
+                else:
+                    # Fallback to common paths
+                    if os.name == 'nt':  # Windows
+                        studio_paths = [
+                            r"C:\Program Files\Android\Android Studio\bin\studio64.exe",
+                            os.path.expanduser(r"~\AppData\Local\Programs\Android Studio\bin\studio64.exe")
+                        ]
+                        found = False
+                        for path in studio_paths:
+                            if os.path.exists(path):
+                                subprocess.Popen([path, project_path])
+                                found = True
+                                break
+                        if not found:
+                            QMessageBox.warning(self, "Android Studio Not Found", 
+                                              "Android Studio not found. Please configure it in Settings.")
+                    else:  # Linux/macOS
+                        subprocess.Popen(["studio", project_path])
+        except Exception as e:
+            QMessageBox.warning(self, "Error", f"Could not open in {editor}: {e}")
 
 

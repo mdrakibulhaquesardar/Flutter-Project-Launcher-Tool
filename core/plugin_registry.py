@@ -13,11 +13,50 @@ class PluginRegistry:
     def __init__(self, plugins_dir: Optional[Path] = None):
         self.logger = Logger()
         if plugins_dir is None:
-            plugins_dir = Path("plugins")
+            plugins_dir = self._get_plugins_directory()
         self.plugins_dir = Path(plugins_dir)
         self.registry_file = self.plugins_dir / ".registry.json"
-        ensure_directory(str(self.plugins_dir))
+        # Only try to create directory if it's writable (user directory)
+        # Built-in plugins directory (in executable) is read-only
+        try:
+            ensure_directory(str(self.plugins_dir))
+        except Exception as e:
+            self.logger.warning(f"Could not create plugins directory {self.plugins_dir}: {e}")
         self._init_registry()
+    
+    def _get_plugins_directory(self) -> Path:
+        """Get plugins directory path, preferring user directory for writability."""
+        import sys
+        import os
+        
+        # Check if running as PyInstaller executable
+        if getattr(sys, 'frozen', False):
+            # Running as executable - plugins are in _internal/plugins
+            # But user-installed plugins should go to user directory
+            base_path = Path(sys.executable).parent
+            builtin_plugins = base_path / "_internal" / "plugins"
+            
+            # User-installed plugins directory
+            user_plugins_dir = Path.home() / ".flutter_launcher" / "plugins"
+            try:
+                user_plugins_dir.mkdir(parents=True, exist_ok=True)
+                return user_plugins_dir
+            except Exception:
+                # Fallback to builtin plugins if user directory fails
+                return builtin_plugins if builtin_plugins.exists() else Path("plugins")
+        else:
+            # Running as script - use current directory or user directory
+            dev_plugins = Path("plugins")
+            if dev_plugins.exists() and os.access(dev_plugins, os.W_OK):
+                return dev_plugins
+            
+            # Use user directory for development too if current directory not writable
+            user_plugins_dir = Path.home() / ".flutter_launcher" / "plugins"
+            try:
+                user_plugins_dir.mkdir(parents=True, exist_ok=True)
+                return user_plugins_dir
+            except Exception:
+                return dev_plugins
     
     def _init_registry(self):
         """Initialize registry file if it doesn't exist."""

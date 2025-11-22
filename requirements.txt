@@ -2,6 +2,7 @@ PyQt6==6.6.1
 PyQt6-Qt6==6.6.1
 PyYAML==6.0.1
 requests==2.31.0
+pyinstaller==6.3.0
 # SQLite is included in Python standard library
 
 

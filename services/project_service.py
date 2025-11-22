@@ -19,8 +19,15 @@ class ProjectService:
         self.logger = Logger()
         self.settings = Settings()
         self.flutter_service = FlutterService()
-        self.projects_file = Path("data/projects.json")  # Keep for backward compatibility
-        self.projects_file.parent.mkdir(parents=True, exist_ok=True)
+        # Use user directory for projects file (backward compatibility)
+        try:
+            app_data_dir = Path.home() / ".flutter_launcher" / "data"
+            app_data_dir.mkdir(parents=True, exist_ok=True)
+            self.projects_file = app_data_dir / "projects.json"
+        except Exception:
+            # Fallback: use temp directory if user directory fails
+            import tempfile
+            self.projects_file = Path(tempfile.gettempdir()) / "flustudio_projects.json"
         from core.database import Database
         self.db = Database()
     
@@ -100,7 +107,8 @@ class ProjectService:
                     "fvm_enabled": bool(project.get("fvm_enabled", 0)),
                     "icon_path": project.get("icon_path"),
                     "last_modified": project.get("last_modified"),
-                    "dependencies": project.get("dependencies", {})
+                    "dependencies": project.get("dependencies", {}),
+                    "tags": project.get("tags", [])
                 }
                 formatted_projects.append(formatted)
             else:
@@ -278,5 +286,88 @@ class ProjectService:
     def clean_project(self, project_path: str) -> tuple[str, int]:
         """Clean Flutter project."""
         return self.flutter_service.run_flutter_command(["clean"], cwd=project_path)
+    
+    def add_tag(self, project_path: str, tag: str) -> bool:
+        """Add a tag to a project."""
+        project = self.db.get_project_by_path(project_path)
+        if not project:
+            return False
+        
+        tags = project.get("tags", [])
+        if not isinstance(tags, list):
+            tags = []
+        
+        tag = tag.strip()
+        if tag and tag not in tags:
+            tags.append(tag)
+            self.db.update_project_tags(project_path, tags)
+            self.logger.info(f"Added tag '{tag}' to project: {project_path}")
+            return True
+        return False
+    
+    def remove_tag(self, project_path: str, tag: str) -> bool:
+        """Remove a tag from a project."""
+        project = self.db.get_project_by_path(project_path)
+        if not project:
+            return False
+        
+        tags = project.get("tags", [])
+        if not isinstance(tags, list):
+            tags = []
+        
+        if tag in tags:
+            tags.remove(tag)
+            self.db.update_project_tags(project_path, tags)
+            self.logger.info(f"Removed tag '{tag}' from project: {project_path}")
+            return True
+        return False
+    
+    def set_tags(self, project_path: str, tags: List[str]) -> bool:
+        """Set tags for a project (replaces existing tags)."""
+        project = self.db.get_project_by_path(project_path)
+        if not project:
+            return False
+        
+        # Clean and validate tags
+        cleaned_tags = [tag.strip() for tag in tags if tag.strip()]
+        self.db.update_project_tags(project_path, cleaned_tags)
+        self.logger.info(f"Set tags for project: {project_path}")
+        return True
+    
+    def get_projects_by_tag(self, tag: str) -> List[Dict[str, Any]]:
+        """Get all projects with a specific tag."""
+        projects = self.db.get_projects_by_tag(tag)
+        
+        # Format projects similar to load_recent_projects
+        formatted_projects = []
+        for project in projects:
+            path = project.get("path")
+            if path and Path(path).exists() and is_flutter_project(path):
+                metadata = {}
+                if project.get("metadata"):
+                    try:
+                        metadata = json.loads(project["metadata"])
+                    except:
+                        pass
+                
+                formatted = {
+                    "name": project.get("name", ""),
+                    "package_name": metadata.get("package_name") or project.get("name", ""),
+                    "path": path,
+                    "flutter_version": project.get("flutter_version"),
+                    "flutter_sdk_constraint": project.get("flutter_sdk_constraint"),
+                    "fvm_enabled": bool(project.get("fvm_enabled", 0)),
+                    "icon_path": project.get("icon_path"),
+                    "last_modified": project.get("last_modified"),
+                    "dependencies": project.get("dependencies", {}),
+                    "tags": project.get("tags", [])
+                }
+                formatted_projects.append(formatted)
+        
+        return formatted_projects
+    
+    def get_all_tags(self) -> List[str]:
+        """Get all unique tags from all projects."""
+        return self.db.get_all_tags()
 
 

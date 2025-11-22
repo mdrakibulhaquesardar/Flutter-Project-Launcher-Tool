@@ -326,8 +326,23 @@ Installed: {plugin.get('installed_at', 'N/A')}
                 QMessageBox.warning(self, "Error", "ZIP file not found.")
                 return
             
-            # Extract to temp location first
-            temp_dir = Path("plugins") / ".temp_install"
+            # Extract to temp location first - use user plugins directory
+            import sys
+            if getattr(sys, 'frozen', False):
+                # Running as executable - use user plugins directory
+                user_plugins_dir = Path.home() / ".flutter_launcher" / "plugins"
+                user_plugins_dir.mkdir(parents=True, exist_ok=True)
+                temp_dir = user_plugins_dir / ".temp_install"
+            else:
+                # Development - try current directory, fallback to user directory
+                dev_plugins = Path("plugins")
+                if dev_plugins.exists():
+                    temp_dir = dev_plugins / ".temp_install"
+                else:
+                    user_plugins_dir = Path.home() / ".flutter_launcher" / "plugins"
+                    user_plugins_dir.mkdir(parents=True, exist_ok=True)
+                    temp_dir = user_plugins_dir / ".temp_install"
+            
             if temp_dir.exists():
                 shutil.rmtree(temp_dir)
             temp_dir.mkdir(parents=True, exist_ok=True)
@@ -362,8 +377,23 @@ Installed: {plugin.get('installed_at', 'N/A')}
                 )
                 return
             
-            # Move to final location
-            plugin_dir = Path("plugins") / plugin_id
+            # Move to final location - use user plugins directory
+            import sys
+            if getattr(sys, 'frozen', False):
+                # Running as executable - use user plugins directory
+                user_plugins_dir = Path.home() / ".flutter_launcher" / "plugins"
+                user_plugins_dir.mkdir(parents=True, exist_ok=True)
+                plugin_dir = user_plugins_dir / plugin_id
+            else:
+                # Development - try current directory, fallback to user directory
+                dev_plugins = Path("plugins")
+                if dev_plugins.exists():
+                    plugin_dir = dev_plugins / plugin_id
+                else:
+                    user_plugins_dir = Path.home() / ".flutter_launcher" / "plugins"
+                    user_plugins_dir.mkdir(parents=True, exist_ok=True)
+                    plugin_dir = user_plugins_dir / plugin_id
+            
             if plugin_dir.exists():
                 reply = QMessageBox.question(
                     self, "Plugin Exists",
@@ -443,7 +473,22 @@ Installed: {plugin.get('installed_at', 'N/A')}
                 return
             
             # Copy to plugins directory
-            plugin_dir = Path("plugins") / plugin_id
+            # Use user plugins directory
+            import sys
+            if getattr(sys, 'frozen', False):
+                # Running as executable - use user plugins directory
+                user_plugins_dir = Path.home() / ".flutter_launcher" / "plugins"
+                user_plugins_dir.mkdir(parents=True, exist_ok=True)
+                plugin_dir = user_plugins_dir / plugin_id
+            else:
+                # Development - try current directory, fallback to user directory
+                dev_plugins = Path("plugins")
+                if dev_plugins.exists():
+                    plugin_dir = dev_plugins / plugin_id
+                else:
+                    user_plugins_dir = Path.home() / ".flutter_launcher" / "plugins"
+                    user_plugins_dir.mkdir(parents=True, exist_ok=True)
+                    plugin_dir = user_plugins_dir / plugin_id
             if plugin_dir.exists():
                 reply = QMessageBox.question(
                     self, "Plugin Exists",

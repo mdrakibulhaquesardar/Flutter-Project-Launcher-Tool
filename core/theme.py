@@ -341,7 +341,7 @@ class Theme:
         return f"""
         ProjectItem {{
             border: 1px solid {cls.BORDER};
-            border-radius: 3px;
+            border-radius: 6px;
             background-color: {cls.SURFACE};
             padding: 2px;
         }}
@@ -349,20 +349,30 @@ class Theme:
         ProjectItem:hover {{
             background-color: {cls.HOVER};
             border-color: {cls.PRIMARY};
+            border-width: 2px;
+            background: qlineargradient(x1:0, y1:0, x2:0, y2:1,
+                stop:0 {cls.HOVER}, stop:1 {cls.SURFACE});
         }}
         
         ProjectItem QPushButton {{
             background-color: {bg_color};
             color: {cls.TEXT_PRIMARY};
             border: 1px solid {cls.BORDER};
-            border-radius: 2px;
-            padding: 4px 12px;
+            border-radius: 4px;
+            padding: 5px 14px;
+            font-weight: 500;
         }}
         
         ProjectItem QPushButton:hover {{
             background-color: {cls.PRIMARY};
             color: white;
             border-color: {cls.PRIMARY};
+            transform: scale(1.05);
+        }}
+        
+        ProjectItem QPushButton:pressed {{
+            background-color: {cls.ACCENT};
+            border-color: {cls.ACCENT};
         }}
         """
     
