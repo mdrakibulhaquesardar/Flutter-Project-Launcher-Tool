@@ -1,0 +1,44 @@
+{
+  "plugins": [
+    {
+      "id": "clean_arch",
+      "name": "Clean Architecture Generator",
+      "version": "1.0.0",
+      "author": "Flutter Launcher",
+      "description": "Generate Clean Architecture boilerplate for Flutter projects",
+      "plugin_type": "architecture",
+      "download_url": "local",
+      "repository": "builtin"
+    },
+    {
+      "id": "getx_generator",
+      "name": "GetX Architecture Generator",
+      "version": "1.0.0",
+      "author": "Flutter Launcher",
+      "description": "Generate GetX-based architecture for Flutter projects",
+      "plugin_type": "architecture",
+      "download_url": "local",
+      "repository": "builtin"
+    },
+    {
+      "id": "build_apk",
+      "name": "Build APK Shortcut",
+      "version": "1.0.0",
+      "author": "Flutter Launcher",
+      "description": "Quick APK build command tool",
+      "plugin_type": "tool",
+      "download_url": "local",
+      "repository": "builtin"
+    },
+    {
+      "id": "flutter_fire",
+      "name": "Flutter Fire Setup",
+      "version": "1.0.0",
+      "author": "Flutter Launcher",
+      "description": "Setup Firebase configuration for Flutter projects",
+      "plugin_type": "template",
+      "download_url": "local",
+      "repository": "builtin"
+    }
+  ]
+}

@@ -6,6 +6,7 @@ from PyQt6.QtCore import Qt, QThread, pyqtSignal
 from services.project_service import ProjectService
 from services.template_service import TemplateService
 from core.logger import Logger
+from core.plugin_loader import PluginLoader
 from pathlib import Path
 from typing import Optional
 
@@ -16,19 +17,64 @@ class ProjectCreationThread(QThread):
     finished = pyqtSignal(bool, str)  # success, message
     
     def __init__(self, project_service: ProjectService, name: str, 
-                 location: str, template: Optional[str]):
+                 location: str, template: Optional[str], architecture: Optional[str] = None,
+                 plugin_template: Optional[str] = None, plugin_loader: Optional[PluginLoader] = None):
         super().__init__()
         self.project_service = project_service
         self.name = name
         self.location = location
         self.template = template
+        self.architecture = architecture
+        self.plugin_template = plugin_template
+        self.plugin_loader = plugin_loader
     
     def run(self):
         """Execute project creation."""
         self.progress.emit("Creating project...")
-        success, message = self.project_service.create_project(
-            self.name, self.location, self.template
-        )
+        
+        # If plugin template is selected, create project first, then apply template
+        if self.plugin_template and self.plugin_loader:
+            # Create basic Flutter project first
+            success, message = self.project_service.create_project(
+                self.name, self.location, None  # No template, create basic project
+            )
+            
+            if success:
+                try:
+                    self.progress.emit(f"Applying {self.plugin_template} template...")
+                    api = self.plugin_loader.get_api()
+                    templates = api.get_registered_templates()
+                    
+                    if self.plugin_template in templates:
+                        template_func = templates[self.plugin_template]
+                        project_path = Path(self.location) / self.name
+                        template_func(api, str(project_path))
+                        self.progress.emit(f"Template {self.plugin_template} applied successfully")
+                    else:
+                        self.progress.emit(f"Warning: Template {self.plugin_template} not found")
+                except Exception as e:
+                    self.progress.emit(f"Warning: Failed to apply template: {e}")
+        else:
+            # Use regular template or create basic project
+            success, message = self.project_service.create_project(
+                self.name, self.location, self.template
+            )
+        
+        # If project created successfully and architecture is selected, apply it
+        if success and self.architecture and self.plugin_loader:
+            try:
+                self.progress.emit(f"Applying {self.architecture} architecture...")
+                api = self.plugin_loader.get_api()
+                architectures = api.get_registered_architectures()
+                
+                if self.architecture in architectures:
+                    arch_func = architectures[self.architecture]
+                    project_path = Path(self.location) / self.name
+                    arch_func(api, str(project_path))
+                    self.progress.emit(f"Architecture {self.architecture} applied successfully")
+            except Exception as e:
+                self.progress.emit(f"Warning: Failed to apply architecture: {e}")
+        
         self.finished.emit(success, message)
 
 
@@ -37,28 +83,34 @@ class ProjectCreator(QDialog):
     
     project_created = pyqtSignal(str)  # project_path
     
-    def __init__(self, parent=None):
+    def __init__(self, parent=None, plugin_loader: Optional[PluginLoader] = None):
         super().__init__(parent)
         self.project_service = ProjectService()
         self.template_service = TemplateService()
         self.logger = Logger()
+        self.plugin_loader = plugin_loader
         self._init_ui()
         self._load_templates()
+        self._load_plugin_architectures()
     
     def _init_ui(self):
         """Initialize UI components."""
         self.setWindowTitle("Create New Flutter Project")
         self.setMinimumWidth(500)
+        self.setMinimumHeight(400)
         
         layout = QVBoxLayout(self)
         layout.setSpacing(15)
+        layout.setContentsMargins(20, 20, 20, 20)
         
         # Project name
         name_layout = QVBoxLayout()
         name_layout.setSpacing(5)
         name_label = QLabel("Project Name:", self)
+        name_label.setMinimumHeight(20)
         self.name_input = QLineEdit(self)
         self.name_input.setPlaceholderText("my_flutter_app")
+        self.name_input.setMinimumHeight(30)
         name_layout.addWidget(name_label)
         name_layout.addWidget(self.name_input)
         layout.addLayout(name_layout)
@@ -88,6 +140,16 @@ class ProjectCreator(QDialog):
         template_layout.addWidget(self.template_combo)
         layout.addLayout(template_layout)
         
+        # Architecture selection (from plugins)
+        architecture_layout = QVBoxLayout()
+        architecture_layout.setSpacing(5)
+        architecture_label = QLabel("Architecture (Optional):", self)
+        self.architecture_combo = QComboBox(self)
+        self.architecture_combo.addItem("None", None)
+        architecture_layout.addWidget(architecture_label)
+        architecture_layout.addWidget(self.architecture_combo)
+        layout.addLayout(architecture_layout)
+        
         # Progress bar (hidden initially)
         self.progress_bar = QProgressBar(self)
         self.progress_bar.setVisible(False)
@@ -113,8 +175,36 @@ class ProjectCreator(QDialog):
         """Load available templates."""
         templates = self.template_service.get_templates()
         self.template_combo.clear()
+        
+        # Add built-in templates
         for template in templates:
             self.template_combo.addItem(template.get("name", ""), template.get("id"))
+        
+        # Add plugin-registered templates
+        if self.plugin_loader:
+            api = self.plugin_loader.get_api()
+            plugin_templates = api.get_registered_templates()
+            
+            if plugin_templates:
+                # Add separator if there are plugin templates
+                self.template_combo.insertSeparator(len(templates))
+                
+                for template_name, template_func in plugin_templates.items():
+                    display_name = f"[Plugin] {template_name.replace('_', ' ').title()}"
+                    # Use special prefix to identify plugin templates
+                    self.template_combo.addItem(display_name, f"plugin:{template_name}")
+    
+    def _load_plugin_architectures(self):
+        """Load plugin-registered architectures."""
+        if not self.plugin_loader:
+            return
+        
+        api = self.plugin_loader.get_api()
+        architectures = api.get_registered_architectures()
+        
+        for arch_name, arch_func in architectures.items():
+            display_name = arch_name.replace("_", " ").title()
+            self.architecture_combo.addItem(display_name, arch_name)
     
     def _browse_location(self):
         """Open folder dialog for project location."""
@@ -129,6 +219,13 @@ class ProjectCreator(QDialog):
         name = self.name_input.text().strip()
         location = self.location_input.text().strip()
         template_id = self.template_combo.currentData()
+        architecture_name = self.architecture_combo.currentData()
+        
+        # Check if template is a plugin template
+        plugin_template_name = None
+        if isinstance(template_id, str) and template_id.startswith("plugin:"):
+            plugin_template_name = template_id.replace("plugin:", "")
+            template_id = None  # Don't pass to Flutter create command
         
         # Validation
         if not name:
@@ -154,7 +251,8 @@ class ProjectCreator(QDialog):
         
         # Create project in thread
         self.creation_thread = ProjectCreationThread(
-            self.project_service, name, location, template_id
+            self.project_service, name, location, template_id, architecture_name, 
+            plugin_template_name, self.plugin_loader
         )
         self.creation_thread.progress.connect(self._on_progress)
         self.creation_thread.finished.connect(self._on_creation_finished)

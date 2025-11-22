@@ -1,0 +1,13 @@
+{
+  "name": "Flutter Fire Setup",
+  "id": "flutter_fire",
+  "version": "1.0.0",
+  "author": "Flutter Launcher",
+  "description": "Setup Firebase configuration for Flutter projects",
+  "plugin_type": "template",
+  "entry": "main.py",
+  "py_dependencies": [],
+  "enabled": true,
+  "min_app_version": "1.0.0"
+}
+

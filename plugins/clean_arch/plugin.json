@@ -1,0 +1,13 @@
+{
+  "name": "Clean Architecture Generator",
+  "id": "clean_arch",
+  "version": "1.0.0",
+  "author": "Flutter Launcher",
+  "description": "Generate Clean Architecture boilerplate for Flutter projects",
+  "plugin_type": "architecture",
+  "entry": "main.py",
+  "py_dependencies": [],
+  "enabled": true,
+  "min_app_version": "1.0.0"
+}
+

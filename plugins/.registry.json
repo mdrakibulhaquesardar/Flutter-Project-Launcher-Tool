@@ -1,0 +1,37 @@
+{
+  "plugins": [
+    {
+      "id": "clean_arch",
+      "name": "Clean Architecture Generator",
+      "version": "1.0.0",
+      "author": "Flutter Launcher",
+      "description": "Generate Clean Architecture boilerplate for Flutter projects",
+      "plugin_type": "architecture",
+      "path": "plugins\\clean_arch",
+      "enabled": true,
+      "installed_at": "2025-11-22T06:47:55.222042"
+    },
+    {
+      "id": "flutter_fire",
+      "name": "Flutter Fire Setup",
+      "version": "1.0.0",
+      "author": "Flutter Launcher",
+      "description": "Setup Firebase configuration for Flutter projects",
+      "plugin_type": "template",
+      "path": "plugins\\flutter_fire",
+      "enabled": true,
+      "installed_at": "2025-11-22T06:47:55.267404"
+    },
+    {
+      "id": "getx_generator",
+      "name": "GetX Architecture Generator",
+      "version": "1.0.0",
+      "author": "Flutter Launcher",
+      "description": "Generate GetX-based architecture for Flutter projects",
+      "plugin_type": "architecture",
+      "path": "plugins\\getx_generator",
+      "enabled": true,
+      "installed_at": "2025-11-22T06:47:55.297200"
+    }
+  ]
+}

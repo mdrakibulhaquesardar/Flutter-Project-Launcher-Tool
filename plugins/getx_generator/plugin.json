@@ -1,0 +1,13 @@
+{
+  "name": "GetX Architecture Generator",
+  "id": "getx_generator",
+  "version": "1.0.0",
+  "author": "Flutter Launcher",
+  "description": "Generate GetX-based architecture for Flutter projects",
+  "plugin_type": "architecture",
+  "entry": "main.py",
+  "py_dependencies": [],
+  "enabled": true,
+  "min_app_version": "1.0.0"
+}
+

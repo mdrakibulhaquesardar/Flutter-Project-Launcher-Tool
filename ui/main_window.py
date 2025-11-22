@@ -14,8 +14,10 @@ from ui.upgrade_checker_dialog import UpgradeCheckerDialog
 from ui.dependency_analyzer_dialog import DependencyAnalyzerDialog
 from ui.emulator_manager_dialog import EmulatorManagerDialog
 from ui.sdk_manager_dialog import SDKManagerDialog
+from ui.plugin_manager_dialog import PluginManagerDialog
 from core.logger import Logger
 from core.settings import Settings
+from core.plugin_loader import PluginLoader
 from pathlib import Path
 import os
 
@@ -27,10 +29,14 @@ class MainWindow(QMainWindow):
         super().__init__()
         self.logger = Logger()
         self.settings = Settings()
+        # Initialize plugin loader
+        self.plugin_loader = PluginLoader(app_instance=self)
         self._init_ui()
         self._setup_menu()
         self._setup_statusbar()
         self._restore_window_state()
+        # Load plugins after UI is ready
+        QTimer.singleShot(100, self._load_plugins)
     
     def _init_ui(self):
         """Initialize UI components."""
@@ -106,11 +112,30 @@ class MainWindow(QMainWindow):
         sdk_manager_action = tools_menu.addAction("SDK Manager")
         sdk_manager_action.triggered.connect(self._show_sdk_manager)
         
+        # Plugins menu (separate from Tools)
+        plugins_menu = menubar.addMenu("Plugins")
+        plugins_action = plugins_menu.addAction("Plugin Manager")
+        plugins_action.triggered.connect(self._show_plugin_manager)
+        plugin_store_action = plugins_menu.addAction("Plugin Store")
+        plugin_store_action.triggered.connect(self._show_plugin_store)
+        
+        # Store menu references for plugin integration
+        self.menus = {
+            "File": file_menu,
+            "Tools": tools_menu,
+            "Plugins": plugins_menu,
+            "Help": None  # Will be set below
+        }
+        
         # Help menu
         help_menu = menubar.addMenu("Help")
+        self.menus["Help"] = help_menu
         
         about_action = help_menu.addAction("About")
         about_action.triggered.connect(self._show_about)
+        
+        # Load plugin menu items after menus are set up
+        QTimer.singleShot(200, self._load_plugin_menu_items)
     
     def _setup_statusbar(self):
         """Setup status bar."""
@@ -118,7 +143,7 @@ class MainWindow(QMainWindow):
     
     def _show_create_project(self):
         """Show project creation dialog."""
-        dialog = ProjectCreator(self)
+        dialog = ProjectCreator(self, plugin_loader=self.plugin_loader)
         dialog.project_created.connect(self.dashboard.on_project_created)
         dialog.exec()
     
@@ -311,6 +336,108 @@ class MainWindow(QMainWindow):
         if dialog.exec() == dialog.DialogCode.Accepted:
             # Refresh settings if SDK was changed
             self.dashboard._load_projects()
+    
+    def _show_plugin_manager(self):
+        """Show plugin manager dialog."""
+        dialog = PluginManagerDialog(self, plugin_loader=self.plugin_loader)
+        dialog.exec()
+    
+    def _show_plugin_store(self):
+        """Show plugin store dialog."""
+        from ui.plugin_store_dialog import PluginStoreDialog
+        
+        dialog = PluginStoreDialog(self, plugin_loader=self.plugin_loader)
+        dialog.exec()
+    
+    def _load_plugins(self):
+        """Load all enabled plugins."""
+        if self.plugin_loader:
+            count = self.plugin_loader.load_plugins()
+            self.logger.info(f"Loaded {count} plugin(s) on startup")
+            # Load plugin menu items after plugins are loaded
+            self._load_plugin_menu_items()
+            self._load_plugin_tool_actions()
+    
+    def _load_plugin_menu_items(self):
+        """Load and add plugin-registered menu items."""
+        if not self.plugin_loader:
+            return
+        
+        api = self.plugin_loader.get_api()
+        menu_items = api.get_registered_menu_items()
+        
+        # Track added items to avoid duplicates
+        added_items = set()
+        
+        for item_key, item_data in menu_items.items():
+            menu_path = item_data.get("menu_path")
+            label = item_data.get("label")
+            callback = item_data.get("callback")
+            
+            # Skip if already added
+            item_id = f"{menu_path}/{label}"
+            if item_id in added_items:
+                continue
+            
+            if menu_path in self.menus and self.menus[menu_path]:
+                menu = self.menus[menu_path]
+                # Check if action already exists
+                existing_action = None
+                for action in menu.actions():
+                    if action.text() == label and action.isSeparator() == False:
+                        existing_action = action
+                        break
+                
+                if not existing_action:
+                    action = menu.addAction(label)
+                    action.triggered.connect(lambda checked, cb=callback: self._execute_plugin_callback(cb))
+                    self.logger.info(f"Added plugin menu item: {menu_path}/{label}")
+                    added_items.add(item_id)
+    
+    def _load_plugin_tool_actions(self):
+        """Load and add plugin-registered tool actions to Tools menu."""
+        if not self.plugin_loader:
+            return
+        
+        api = self.plugin_loader.get_api()
+        tool_actions = api.get_registered_tool_actions()
+        
+        tools_menu = self.menus.get("Tools")
+        if not tools_menu:
+            return
+        
+        # Remove existing Plugin Actions submenu if it exists
+        for action in tools_menu.actions():
+            if action.menu() and action.menu().title() == "Plugin Actions":
+                tools_menu.removeAction(action)
+                break
+        
+        if not tool_actions:
+            return
+        
+        # Add separator and plugin actions submenu
+        tools_menu.addSeparator()
+        plugin_actions_menu = tools_menu.addMenu("Plugin Actions")
+        
+        for action_name, action_data in tool_actions.items():
+            callback = action_data.get("callback")
+            action = plugin_actions_menu.addAction(action_name)
+            action.triggered.connect(lambda checked, cb=callback: self._execute_plugin_callback(cb))
+            self.logger.info(f"Added plugin tool action: {action_name}")
+    
+    def _execute_plugin_callback(self, callback):
+        """Execute a plugin callback safely."""
+        try:
+            if self.plugin_loader:
+                api = self.plugin_loader.get_api()
+                callback(api)
+        except Exception as e:
+            self.logger.error(f"Error executing plugin callback: {e}", exc_info=True)
+            QMessageBox.critical(
+                self,
+                "Plugin Error",
+                f"An error occurred while executing plugin action:\n{str(e)}"
+            )
     
     def _show_about(self):
         """Show about dialog."""
