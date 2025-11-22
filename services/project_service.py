@@ -286,7 +286,7 @@ class ProjectService:
     def clean_project(self, project_path: str) -> tuple[str, int]:
         """Clean Flutter project."""
         return self.flutter_service.run_flutter_command(["clean"], cwd=project_path)
-    
+
     def add_tag(self, project_path: str, tag: str) -> bool:
         """Add a tag to a project."""
         project = self.db.get_project_by_path(project_path)

@@ -2,7 +2,7 @@
 ; Compile this script with Inno Setup Compiler to create an installer
 
 #define AppName "FluStudio"
-#define AppVersion "1.0.0"
+#define AppVersion "1.0.1"
 #define AppPublisher "NextCode Studio"
 #define AppURL "https://nextcodestudio.com"
 #define AppExeName "FluStudio.exe"

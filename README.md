@@ -1,239 +1,149 @@
 # FluStudio
 
-A cross-platform desktop application for managing Flutter projects, built with Python and PyQt6.
+**FluStudio** is an easy-to-use desktop application that helps you manage your Flutter projects. With FluStudio, you can easily create new Flutter apps, run your projects, and control everything from one place.
 
-## Features
+## What Can FluStudio Do?
 
-- 🚀 **Project Creation** - Create new Flutter projects with templates
-- 📊 **Project Dashboard** - View and manage recent projects
-- 🔍 **Project Scanner** - Automatically detect Flutter projects on your system
-- 🔧 **Flutter SDK Manager** - Manage multiple Flutter SDK installations
-- 📦 **Quick Actions** - Run, build, clean projects with one click
-- 🎨 **Template Manager** - Create and use custom project templates
-- 📱 **Device Management** - View connected devices and emulators
-- 📝 **Log Console** - Real-time command output with error highlighting
+- ✨ **Create New Projects** - Create new Flutter apps with just a few clicks
+- 📋 **View Projects** - See all your Flutter projects in one place
+- 🔍 **Auto-Discover** - Automatically find Flutter projects on your computer
+- 🚀 **Run Apps** - Launch your app with a single button click
+- 📦 **Build APK** - Create Android apps easily
+- 🎨 **Use Templates** - Get started quickly with ready-made templates
+- 📱 **View Devices** - See your connected phones or emulators
 
-## Requirements
+## How to Install?
 
-- Python 3.8 or higher
-- Flutter SDK installed
-- PyQt6
+### For Windows (Easiest Way)
 
-## Installation
+1. **Download the Installer**
+   - Download the `FluStudio-Setup-1.0.1.exe` file
 
-### Windows Setup
+2. **Run the Installer**
+   - Double-click the downloaded file
+   - Follow the instructions on screen
+   - Click the "Install" button
 
-1. **Open Command Prompt or PowerShell** in the project directory
+3. **Get Started**
+   - After installation, open FluStudio from the Start Menu
+   - Or click the shortcut created on your Desktop
 
-2. **Run setup script:**
-   ```bash
-   setup.bat
-   ```
-   This will:
-   - Create a virtual environment
-   - Install all dependencies (PyQt6, PyYAML)
-
-3. **Run the application:**
-   ```bash
-   run.bat
-   ```
-   Or directly:
-   ```bash
-   venv\Scripts\python.exe main.py
-   ```
-
-**Note:** If you encounter PowerShell execution policy errors, the scripts are designed to work around this by using the Python executable directly.
-
-### Linux/macOS Setup
-
-1. **Open Terminal** in the project directory
-
-2. **Make scripts executable (first time only):**
-   ```bash
-   chmod +x setup.sh run.sh
-   ```
-
-3. **Run setup script:**
-   ```bash
-   ./setup.sh
-   ```
-   This will:
-   - Create a virtual environment
-   - Install all dependencies (PyQt6, PyYAML)
-
-4. **Run the application:**
-   ```bash
-   ./run.sh
-   ```
-   Or manually:
-   ```bash
-   source venv/bin/activate
-   python main.py
-   ```
-
-## Usage
+**Remember:** You don't need to install Python on your computer to use FluStudio. Everything comes with the installer.
 
 ### First Time Setup
 
-1. Launch the application
-2. Go to **Tools → Settings** (or press `Ctrl+,`)
-3. In the **Flutter SDK** tab:
-   - Click **Auto-detect SDKs** to find existing installations
-   - Or manually **Add SDK** by selecting your Flutter SDK directory
-   - Set a default SDK if you have multiple installations
+1. **Open FluStudio**
+   - Open FluStudio from the Start Menu
+
+2. **Setup Flutter SDK**
+   - If you already have Flutter SDK installed on your computer, FluStudio will find it automatically
+   - Go to Settings (⚙️) → Flutter SDK
+   - Click "Auto-detect SDKs"
+   - If Flutter SDK is not found, please install Flutter SDK first ([flutter.dev](https://flutter.dev))
+
+## How to Use?
 
 ### Creating a New Project
 
-1. Click **➕ Create Project** button or use `Ctrl+N`
-2. Enter project name
-3. Select project location
-4. Choose a template (optional)
-5. Click **Create Project**
+1. **Click the "➕ Create Project" button**
+   - Or press `Ctrl+N`
 
-### Managing Projects
+2. **Enter Project Name**
+   - For example: "My First App"
 
-- **Run Project**: Select a project and click **🏃 Run**
-- **Build APK**: Click **📦 Build APK** to build Android APK
-- **Build Bundle**: Click **🎁 Build Bundle** to build Android App Bundle
-- **Pub Get**: Click **🔄 Pub Get** to fetch dependencies
-- **Clean**: Click **♻ Clean** to clean build files
-- **Open in Editor**: Use **📝 VS Code** or **🛠 Android Studio** buttons
-- **Open Folder**: Click **📂 Open Folder** to open in file explorer
+3. **Choose Where to Create It**
+   - Click "Browse" to select a folder
 
-### Scanning for Projects
+4. **Choose a Template (Optional)**
+   - You can select a template if you want
 
-1. Go to **Tools → Scan for Projects...**
-2. Select a directory to scan
-3. Found projects will be added to your dashboard
+5. **Click "Create Project"**
+   - Wait a moment, and your project will be created!
 
-## Project Structure
+### Running Your Project
 
-```
-FluStudio/
-├── main.py                 # Application entry point
-├── requirements.txt        # Python dependencies
-├── README.md              # This file
-├── QUICKSTART.md          # Quick start guide
-├── setup.bat / setup.sh   # Setup scripts
-├── run.bat / run.sh       # Run scripts
-│
-├── core/                  # Core utilities
-│   ├── commands.py       # Command execution
-│   ├── logger.py         # Logging
-│   └── settings.py       # Settings management
-│
-├── services/             # Business logic
-│   ├── flutter_service.py
-│   ├── project_service.py
-│   ├── template_service.py
-│   └── device_service.py
-│
-├── ui/                   # UI components
-│   ├── main_window.py
-│   ├── dashboard_widget.py
-│   ├── project_creator.py
-│   ├── settings_dialog.py
-│   └── console_widget.py
-│
-├── widgets/              # Reusable widgets
-│   ├── project_item.py
-│   ├── template_item.py
-│   └── command_console.py
-│
-├── utils/                # Utilities
-│   ├── file_utils.py
-│   └── path_utils.py
-│
-├── data/                 # Data storage
-│   ├── projects.json
-│   ├── settings.json
-│   └── templates/
-│
-└── assets/               # Static resources
-    ├── icons/
-    └── styles/
-```
+1. **Select Your Project**
+   - You'll see a list of your projects on the Dashboard
+   - Click on the project you want to run
 
-## Configuration
+2. **Click the "🏃 Run" button**
+   - Your app will launch!
 
-Application settings are stored in `data/settings.json`. You can also manage settings through the UI.
+### Building Android APK
 
-Project metadata is stored in `data/projects.json`.
+1. **Select Your Project**
+2. **Click "📦 Build APK"**
+3. **Wait** - It will take some time to build the APK
+4. **The APK file** will be in your project folder
 
-Logs are stored in `~/.flutter_launcher/logs/`.
+### Other Actions
+
+- **🔄 Pub Get** - Download required files for your project
+- **♻ Clean** - Clean up old files
+- **📝 VS Code** - Open project in VS Code
+- **🛠 Android Studio** - Open project in Android Studio
+- **📂 Open Folder** - Open project folder in Windows Explorer
+
+### Finding Projects on Your Computer
+
+1. **Go to Tools menu**
+2. **Select "Scan for Projects..."**
+3. **Choose a folder** where your Flutter projects are located
+4. **Click "Scan"**
+5. Found projects will be added to your Dashboard
 
 ## Troubleshooting
 
-### PowerShell Execution Policy Error
-
-If you see an error about execution policies when activating the virtual environment:
-
-**Solution 1 (Recommended):** Use the provided scripts which work around this issue:
-```bash
-run.bat
-```
-
-**Solution 2:** Run Python directly:
-```bash
-venv\Scripts\python.exe main.py
-```
-
-**Solution 3:** Change execution policy (requires admin):
-```powershell
-Set-ExecutionPolicy -ExecutionPolicy RemoteSigned -Scope CurrentUser
-```
-
 ### Flutter SDK Not Found
 
-1. Ensure Flutter SDK is installed
-2. Go to **Settings → Flutter SDK**
-3. Click **Auto-detect SDKs** or manually add SDK path
+**Solution:**
+1. Make sure Flutter SDK is installed
+2. In FluStudio, go to Settings (⚙️) → Flutter SDK
+3. Click "Auto-detect SDKs"
+4. If still not found, install Flutter SDK: [flutter.dev](https://flutter.dev/docs/get-started/install/windows)
 
 ### Projects Not Showing
 
-1. Click **🔄 Refresh** button
-2. Or go to **Tools → Scan for Projects...** to scan directories
+**Solution:**
+1. Click the "🔄 Refresh" button on the Dashboard
+2. Or use Tools → Scan for Projects... to find projects
 
-### Command Execution Errors
+### Having Trouble Running Apps
 
-- Check that Flutter SDK is properly configured
-- Verify Flutter is in your system PATH (or configure SDK in settings)
-- Check the console output for detailed error messages
+**Solution:**
+1. Make sure Flutter SDK is set up correctly
+2. Check the Console for any error messages
+3. Go to Settings → Flutter SDK and check the SDK path
 
-### ModuleNotFoundError
+### Need More Help?
 
-- Make sure you've run `setup.bat` (Windows) or `./setup.sh` (Linux/macOS)
-- Verify virtual environment exists: `venv\Scripts\python.exe` (Windows) or `venv/bin/python` (Linux/macOS)
+- Check the Console for error messages - detailed information about problems will be there
+- Go to Settings → Flutter SDK to check SDK configuration
+- If problems continue, contact the support team
 
-## Development
+## Requirements
 
-### Running in Development Mode
+- **Windows 7 or later** (64-bit)
+- **Flutter SDK** must be installed
+- **~200 MB** free space
 
-**Windows:**
-```bash
-venv\Scripts\python.exe main.py
-```
+## Tips
 
-**Linux/macOS:**
-```bash
-source venv/bin/activate
-python main.py
-```
-
-### Code Style
-
-- Follow PEP 8 Python style guide
-- Use type hints where possible
-- Document functions and classes
+- ✅ Setup Flutter SDK before first use
+- ✅ Keep your projects in one place - makes them easier to find
+- ✅ Check the Console for error messages - helps understand problems
+- ✅ You can change settings to your preference from Settings
 
 ## License
 
-[Add your license here]
-
-## Contributing
-
-[Add contribution guidelines here]
+FluStudio is a licensed software. A license key is required for use.
 
 ## Support
 
-[Add support information here]
+Contact us:
+- Website: [nextcodestudio.com](https://nextcodestudio.com)
+- Support: support@nextcodestudio.com
+
+---
+
+**Create Flutter Apps Easily with FluStudio!** 🚀

@@ -11,7 +11,7 @@ block_cipher = None
 
 # Application data
 app_name = 'FluStudio'
-app_version = '1.0.0'
+app_version = '1.0.1'
 
 # Get paths - SPECPATH is set by PyInstaller
 try:

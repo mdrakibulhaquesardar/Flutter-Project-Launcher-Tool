@@ -14,11 +14,11 @@ if not exist "dist\FluStudio\FluStudio.exe" (
 )
 
 REM Check if Inno Setup is installed
-set INNO_SETUP_PATH=
+set "INNO_SETUP_PATH="
 if exist "C:\Program Files (x86)\Inno Setup 6\ISCC.exe" (
-    set INNO_SETUP_PATH=C:\Program Files (x86)\Inno Setup 6\ISCC.exe
+    set "INNO_SETUP_PATH=C:\Program Files (x86)\Inno Setup 6\ISCC.exe"
 ) else if exist "C:\Program Files\Inno Setup 6\ISCC.exe" (
-    set INNO_SETUP_PATH=C:\Program Files\Inno Setup 6\ISCC.exe
+    set "INNO_SETUP_PATH=C:\Program Files\Inno Setup 6\ISCC.exe"
 ) else (
     echo.
     echo ERROR: Inno Setup not found!
@@ -39,7 +39,7 @@ REM Create installer output directory
 if not exist "dist\installer" mkdir "dist\installer"
 
 echo Compiling installer...
-"%INNO_SETUP_PATH%" "build_installer.iss"
+"%INNO_SETUP_PATH%" build_installer.iss
 
 if %ERRORLEVEL% EQU 0 (
     echo.
@@ -47,7 +47,7 @@ if %ERRORLEVEL% EQU 0 (
     echo Installer created successfully!
     echo ========================================
     echo.
-    echo Installer location: dist\installer\FluStudio-Setup-1.0.0.exe
+    echo Installer location: dist\installer\FluStudio-Setup-1.0.1.exe
     echo.
 ) else (
     echo.

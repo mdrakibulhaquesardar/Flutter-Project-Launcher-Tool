@@ -10,7 +10,7 @@ class Branding:
     
     # Application Info
     APP_NAME = "FluStudio"
-    APP_VERSION = "1.0.0"
+    APP_VERSION = "1.0.1"
     ORGANIZATION_NAME = "NextCode Studio"
     ORGANIZATION_DOMAIN = "nextcodestudio.com"
     

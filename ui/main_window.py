@@ -170,6 +170,11 @@ class MainWindow(QMainWindow):
         
         help_menu.addSeparator()
         
+        license_action = help_menu.addAction("License")
+        license_action.triggered.connect(self._show_license)
+        
+        help_menu.addSeparator()
+        
         report_issue_action = help_menu.addAction("Report Issue")
         report_issue_action.triggered.connect(self._report_issue)
         
@@ -802,6 +807,12 @@ Esc             Close Dialog/Window
         """Show contributors dialog."""
         from ui.contributors_dialog import ContributorsDialog
         dialog = ContributorsDialog(self)
+        dialog.exec()
+    
+    def _show_license(self):
+        """Show license dialog."""
+        from ui.license_dialog import LicenseDialog
+        dialog = LicenseDialog(self)
         dialog.exec()
     
     def _send_feedback(self):

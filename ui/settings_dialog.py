@@ -2,14 +2,17 @@
 from PyQt6.QtWidgets import (QDialog, QVBoxLayout, QHBoxLayout, QLabel, 
                              QLineEdit, QPushButton, QListWidget, QListWidgetItem,
                              QMessageBox, QFileDialog, QTabWidget, QWidget, QCheckBox, QTextEdit,
-                             QComboBox, QSpinBox, QGroupBox)
+                             QComboBox, QSpinBox, QGroupBox, QProgressBar)
 from PyQt6.QtCore import Qt
 from services.flutter_service import FlutterService
 from core.settings import Settings
 from core.logger import Logger
 from core.database import Database
+from core.license import LicenseManager
+from core.branding import Branding
 from utils.path_utils import validate_flutter_sdk
 from pathlib import Path
+from datetime import datetime
 import os
 import shutil
 
@@ -22,6 +25,7 @@ class SettingsDialog(QDialog):
         self.settings = Settings()
         self.flutter_service = FlutterService()
         self.logger = Logger()
+        self.license_manager = LicenseManager()
         self._init_ui()
         # Defer loading until dialog is shown
         from PyQt6.QtCore import QTimer
@@ -243,6 +247,74 @@ class SettingsDialog(QDialog):
         advanced_layout.addStretch()
         tabs.addTab(advanced_tab, "Advanced")
         
+        # License tab
+        license_tab = QWidget()
+        license_layout = QVBoxLayout(license_tab)
+        license_layout.setSpacing(15)
+        
+        # License Status Group
+        status_group = QGroupBox("License Status", self)
+        status_layout = QVBoxLayout(status_group)
+        status_layout.setSpacing(10)
+        
+        self.license_status_label = QLabel(self)
+        self.license_status_label.setWordWrap(True)
+        status_layout.addWidget(self.license_status_label)
+        
+        # Trial progress (if trial active)
+        self.license_trial_progress_label = QLabel(self)
+        self.license_trial_progress_label.setVisible(False)
+        status_layout.addWidget(self.license_trial_progress_label)
+        
+        self.license_trial_progress_bar = QProgressBar(self)
+        self.license_trial_progress_bar.setVisible(False)
+        self.license_trial_progress_bar.setMinimum(0)
+        self.license_trial_progress_bar.setMaximum(14)
+        status_layout.addWidget(self.license_trial_progress_bar)
+        
+        # License info
+        self.license_info_label = QLabel(self)
+        self.license_info_label.setVisible(False)
+        self.license_info_label.setWordWrap(True)
+        status_layout.addWidget(self.license_info_label)
+        
+        license_layout.addWidget(status_group)
+        
+        # License Key Input Group
+        key_group = QGroupBox("Activate License", self)
+        key_layout = QVBoxLayout(key_group)
+        key_layout.setSpacing(10)
+        
+        key_input_layout = QHBoxLayout()
+        key_label = QLabel("License Key:", self)
+        self.license_key_input = QLineEdit(self)
+        self.license_key_input.setPlaceholderText("XXXX-XXXX-XXXX-XXXX")
+        self.license_key_input.textChanged.connect(self._on_license_key_changed)
+        key_input_layout.addWidget(key_label)
+        key_input_layout.addWidget(self.license_key_input)
+        key_layout.addLayout(key_input_layout)
+        
+        activate_btn_layout = QHBoxLayout()
+        activate_btn_layout.addStretch()
+        self.license_activate_btn = QPushButton("Activate", self)
+        self.license_activate_btn.setEnabled(False)
+        self.license_activate_btn.clicked.connect(self._activate_license_from_settings)
+        activate_btn_layout.addWidget(self.license_activate_btn)
+        key_layout.addLayout(activate_btn_layout)
+        
+        license_layout.addWidget(key_group)
+        
+        # Purchase License
+        purchase_layout = QHBoxLayout()
+        purchase_layout.addStretch()
+        purchase_btn = QPushButton("Purchase License", self)
+        purchase_btn.clicked.connect(self._purchase_license_from_settings)
+        purchase_layout.addWidget(purchase_btn)
+        license_layout.addLayout(purchase_layout)
+        
+        license_layout.addStretch()
+        tabs.addTab(license_tab, "License")
+        
         layout.addWidget(tabs)
         
         # Dialog buttons
@@ -288,6 +360,9 @@ class SettingsDialog(QDialog):
             self.log_level_combo.setCurrentIndex(index)
         self.font_size_spinbox.setValue(self.settings.get_console_font_size())
         self.max_lines_spinbox.setValue(self.settings.get_console_max_lines())
+        
+        # Load license information
+        self._load_license_info()
     
     def _refresh_sdk_list(self):
         """Refresh SDK list widget."""
@@ -542,6 +617,134 @@ class SettingsDialog(QDialog):
                 )
             except Exception as e:
                 QMessageBox.warning(self, "Error", f"Failed to restore database:\n{str(e)}")
+    
+    def _load_license_info(self):
+        """Load and display license information."""
+        info = self.license_manager.get_license_info()
+        status = info["status"]
+        
+        if status == "license_active":
+            self.license_status_label.setText(
+                "<b>Status:</b> License Activated<br>"
+                "<span style='color: green;'>✓ Your license is active</span>"
+            )
+            self.license_status_label.setStyleSheet("color: green;")
+            
+            activated_at = info.get("activated_at")
+            if activated_at:
+                try:
+                    dt = datetime.fromisoformat(activated_at)
+                    self.license_info_label.setText(
+                        f"<b>Activated:</b> {dt.strftime('%Y-%m-%d %H:%M:%S')}"
+                    )
+                    self.license_info_label.setVisible(True)
+                except Exception:
+                    pass
+            
+            self.license_trial_progress_label.setVisible(False)
+            self.license_trial_progress_bar.setVisible(False)
+            
+        elif status == "trial_active":
+            days_remaining = info["days_remaining"]
+            self.license_status_label.setText(
+                "<b>Status:</b> Trial Period Active<br>"
+                f"<span style='color: orange;'>You have {days_remaining} day(s) remaining</span>"
+            )
+            self.license_status_label.setStyleSheet("color: orange;")
+            
+            # Show progress
+            self.license_trial_progress_label.setText(
+                f"Trial Progress: {days_remaining} of {LicenseManager.TRIAL_DAYS} days remaining"
+            )
+            self.license_trial_progress_label.setVisible(True)
+            
+            self.license_trial_progress_bar.setValue(days_remaining)
+            self.license_trial_progress_bar.setVisible(True)
+            
+            # Show reminder if expiring soon
+            if self.license_manager.should_show_reminder():
+                reminder_text = (
+                    f"<b>Reminder:</b> Your trial expires in {days_remaining} day(s). "
+                    "Please activate a license key to continue using FluStudio."
+                )
+                self.license_info_label.setText(reminder_text)
+                self.license_info_label.setStyleSheet("color: orange;")
+                self.license_info_label.setVisible(True)
+            
+        elif status == "trial_expired":
+            self.license_status_label.setText(
+                "<b>Status:</b> Trial Period Expired<br>"
+                "<span style='color: red;'>Your trial period has ended</span>"
+            )
+            self.license_status_label.setStyleSheet("color: red;")
+            
+            self.license_info_label.setText(
+                "Please activate a license key to continue using FluStudio."
+            )
+            self.license_info_label.setStyleSheet("color: red;")
+            self.license_info_label.setVisible(True)
+            
+            self.license_trial_progress_label.setVisible(False)
+            self.license_trial_progress_bar.setVisible(False)
+            
+        else:  # license_invalid
+            self.license_status_label.setText(
+                "<b>Status:</b> Invalid License<br>"
+                "<span style='color: red;'>Your license key is invalid</span>"
+            )
+            self.license_status_label.setStyleSheet("color: red;")
+            
+            self.license_info_label.setText(
+                "Please enter a valid license key or contact support."
+            )
+            self.license_info_label.setVisible(True)
+    
+    def _on_license_key_changed(self, text: str):
+        """Handle license key input change."""
+        # Enable activate button if key format looks valid
+        key_clean = text.replace('-', '').replace(' ', '').upper()
+        is_valid_format = len(key_clean) == 16 and key_clean.isalnum()
+        self.license_activate_btn.setEnabled(is_valid_format)
+    
+    def _activate_license_from_settings(self):
+        """Activate the entered license key."""
+        key = self.license_key_input.text().strip()
+        
+        if not key:
+            QMessageBox.warning(self, "Invalid Key", "Please enter a license key.")
+            return
+        
+        # Normalize key format
+        key_clean = key.replace('-', '').replace(' ', '').upper()
+        if len(key_clean) != 16:
+            QMessageBox.warning(
+                self, "Invalid Format",
+                "License key must be 16 characters.\nFormat: XXXX-XXXX-XXXX-XXXX"
+            )
+            return
+        
+        # Format with dashes
+        formatted_key = f"{key_clean[:4]}-{key_clean[4:8]}-{key_clean[8:12]}-{key_clean[12:16]}"
+        
+        # Activate
+        success, message = self.license_manager.activate_license(formatted_key)
+        
+        if success:
+            QMessageBox.information(self, "License Activated", message)
+            # Force refresh by creating new license manager instance
+            self.license_manager = LicenseManager()
+            self._load_license_info()  # Refresh display
+            self.license_key_input.clear()
+        else:
+            QMessageBox.warning(self, "Activation Failed", message)
+    
+    def _purchase_license_from_settings(self):
+        """Open purchase/license website."""
+        from PyQt6.QtGui import QDesktopServices
+        from PyQt6.QtCore import QUrl
+        
+        url = f"https://{Branding.ORGANIZATION_DOMAIN}/purchase"
+        QDesktopServices.openUrl(QUrl(url))
     
     def _save_and_close(self):
         """Save settings and close dialog."""
